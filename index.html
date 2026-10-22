@@ -561,8 +561,7 @@ function viewEvents(){
       <div class="amt">${cls==="done"?(e.actual&&n(e.actual.days)?`<div class="sectionlabel" style="font-size:.66rem">ยอดขายจริง</div><div class="num" style="font-weight:600">฿${fmt(e.actual.gross)}</div>
         <div class="num ${n(e.actual.np)<0?"neg":"pos"}" style="font-size:.85rem;font-weight:600">${n(e.actual.np)<0?"ขาดทุน":"กำไร"} ฿${fmt(Math.abs(n(e.actual.np)))}</div>`
         :`<div class="sectionlabel" style="font-size:.66rem">ยอดขายจริง</div><div class="muted" style="font-size:.85rem">ยังไม่กรอกยอด</div>`)
-      :`${isBooth(e)?`<div class="sectionlabel" style="font-size:.66rem">Target sales</div>`:""}<div class="num" style="font-weight:600">฿${fmt(eventTotal(e))}</div>`}<span class="pill ${cls}">${lab}</span>
-        ${isBooth(e)?"":`<div class="muted" style="font-size:.76rem;margin-top:2px">${n(e.paid)>=eventTotal(e)-0.005&&n(e.paid)?"ชำระครบ":n(e.paid)?"ค้าง ฿"+fmt(eventTotal(e)-n(e.paid)):"ยังไม่ชำระ"}</div>`}</div>
+      :`${isBooth(e)?`<div class="sectionlabel" style="font-size:.66rem">Target sales</div>`:""}<div class="num" style="font-weight:600">฿${fmt(eventTotal(e))}</div>`}<span class="pill ${cls}">${lab}</span></div>
     </button>`}).join("")}</div>`;
 }
 
@@ -757,9 +756,7 @@ function pdfSheet(e){
         ${!booth&&n(e.cateringFeePerDay)?`<tr><td>ค่าบริการ Catering</td><td class="r num">${fmt(e.cateringFeePerDay,2)}</td><td class="r num">${ds.length} วัน</td><td class="r num">${fmt(n(e.cateringFeePerDay)*ds.length,2)}</td></tr>`:""}
         <tr class="total"><td colspan="3">รวม</td><td class="r num">${fmt(total,2)}</td></tr></tbody></table></div>`:""}
       ${booth?`<div><div class="sectionlabel" style="margin-bottom:6px">Feasibility บูธ</div>${feasPanel(e,calcFeas(e))}</div>`
-        :`<div><div class="sectionlabel" style="margin-bottom:6px">การชำระเงิน</div><table style="width:100%;font-size:13px"><tbody>
-          ${pays.map(p=>`<tr><td style="border-top:1px solid var(--line);padding:6px 8px">${dLabel(p.date)}${p.time?" "+esc(p.time):""} · ${esc(p.kind||"")}${p.ref?` · Ref ${esc(p.ref)}`:""}</td><td class="r num" style="border-top:1px solid var(--line);padding:6px 8px">${fmt(p.amount,2)}</td></tr>`).join("")}
-          <tr class="total"><td>รับแล้ว / คงค้าง</td><td class="r num">${fmt(paid,2)} / ${fmt(Math.max(total-paid,0),2)}</td></tr></tbody></table></div>`}
+        :`<div><div class="sectionlabel" style="margin-bottom:6px">สลิปโอนเงิน</div><div style="font-size:13px">${pays.length?`แนบแล้ว ${pays.length} ไฟล์`:"ยังไม่มีสลิป"}</div></div>`}
       ${(S.updates||[]).length?`<div><div class="sectionlabel" style="margin-bottom:6px">อัปเดตหลังคอนเฟิร์ม</div>${S.updates.map(u=>`<div style="border-top:1px solid var(--line);padding:8px 0;font-size:12px"><b>${esc(u.title||"อัปเดต")}</b>${u.due?` · ภายใน ${dLabel(u.due)}`:""}<div style="white-space:pre-wrap;color:var(--muted)">${esc(u.body)}</div></div>`).join("")}</div>`:""}
     </div>`;
 }
@@ -932,38 +929,19 @@ function summarySheet(){
 }
 /* payments & slips (Catering) */
 function viewPayments(e){
-  const pays=S.payments||[],total=eventTotal(e),paid=pays.reduce((a,p)=>a+n(p.amount),0),left=total-paid;
-  const pd=S.payDraft||{},canUp=S.isAdmin&&S.assets;
-  const form=!S.isAdmin?"":!S.assets?`<p class="notice info" style="margin:0">แนบสลิปได้เฉพาะทีมลงทะเบียนงาน</p>`
-    :S.payOpen?`<div class="panel" style="display:flex;flex-direction:column;gap:10px">
-      <label>ไฟล์สลิป (รูป หรือ PDF)<input id="p-file" type="file" accept="image/png,image/jpeg,image/webp,application/pdf"></label>
-      <p id="payErr" class="notice warn" hidden></p>
-      <div class="row" style="justify-content:flex-end"><button class="btn sec" id="payCancel" type="button">ยกเลิก</button><button class="btn" id="paySave" type="button">แนบสลิป</button></div>
-    </div>`:`<button class="btn sec small" id="payNew" type="button" style="align-self:flex-start">+ แนบสลิปโอนเงิน</button>`;
+  const pays=S.payments||[];
+  const add=S.isAdmin&&S.assets?`<label class="btn small" style="align-self:flex-start;cursor:pointer">${S.payBusy?"กำลังแนบ…":"+ แนบสลิป"}<input id="p-file" type="file" accept="image/png,image/jpeg,image/webp,application/pdf" hidden ${S.payBusy?"disabled":""}></label>`:"";
   return `<section style="display:flex;flex-direction:column;gap:10px">
-    <h2>การชำระเงิน</h2>
-    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
-      <div class="panel" style="padding:12px 14px"><div class="sectionlabel">ยอดงาน</div><div class="num" style="font-weight:600;font-size:1.15rem">฿${fmt(total,2)}</div></div>
-      <div class="panel" style="padding:12px 14px"><div class="sectionlabel">รับแล้ว</div><div class="num pos" style="font-weight:600;font-size:1.15rem">฿${fmt(paid,2)}</div></div>
-      <div class="panel" style="padding:12px 14px"><div class="sectionlabel">คงค้าง</div><div class="num ${left>0.005?"neg":""}" style="font-weight:600;font-size:1.15rem">฿${fmt(Math.max(left,0),2)}</div>
-        <span class="pill ${left<=0.005&&paid?"ok":paid?"live":"cx"}">${left<=0.005&&paid?"ชำระครบ":paid?"ชำระบางส่วน":"ยังไม่ชำระ"}</span></div>
-    </div>
-    ${form}
-    ${pays.length?`<div style="display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(260px,1fr))">${pays.map(p=>{
+    <h2>สลิปโอนเงิน</h2>
+    ${add}
+    ${pays.length?`<div style="display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(120px,1fr))">${pays.map(p=>{
       const src=slipSrc(p.assetId),pdf=p.contentType==="application/pdf";
-      return `<article class="panel" style="display:flex;gap:12px;padding:12px">
-        <button type="button" data-slip="${esc(p.id)}" style="flex:none;width:84px;height:110px;border:1px solid var(--line);border-radius:8px;background:var(--soft);padding:0;overflow:hidden" aria-label="ดูสลิป">
-          ${pdf?`<span class="muted" style="font-size:.8rem">PDF</span>`:`<img src="${esc(src)}" alt="สลิปโอนเงิน" style="width:100%;height:100%;object-fit:cover">`}
-        </button>
-        <div style="min-width:0;display:flex;flex-direction:column;gap:2px;font-size:.88rem">
-          <div class="num" style="font-weight:600;font-size:1.05rem">฿${fmt(p.amount,2)}</div>
-          <div>${dLabel(p.date)}${p.time?" · "+esc(p.time)+" น.":""} <span class="pill done">${esc(p.kind||"")}</span></div>
-          ${p.payer?`<div class="muted">จาก ${esc(p.payer)}${p.bank?" · "+esc(p.bank):""}</div>`:""}
-          ${p.ref?`<div class="muted num" style="overflow-wrap:anywhere;font-size:.78rem">Ref ${esc(p.ref)}</div>`:""}
-          ${pdf?`<a href="${esc(src)}" target="_blank" rel="noopener">เปิด PDF</a>`:""}
-          ${S.isAdmin?(S.payDel===p.id?`<div class="row" style="gap:6px;margin-top:4px"><button class="btn small" data-paydelyes="${esc(p.id)}" type="button">ยืนยันลบ</button><button class="btn sec small" data-paydelno type="button">ไม่ลบ</button></div>`
-            :`<button class="x" data-paydel="${esc(p.id)}" type="button" style="align-self:flex-start;font-size:.85rem">ลบสลิป</button>`):""}
-        </div></article>`}).join("")}</div>`:`<div class="empty" style="padding:20px">ยังไม่มีสลิปโอนเงิน</div>`}
+      return `<div style="display:flex;flex-direction:column;gap:6px;align-items:stretch">
+        ${pdf?`<a class="panel" href="${esc(src)}" target="_blank" rel="noopener" style="aspect-ratio:3/4;display:grid;place-items:center;padding:0;text-decoration:none;color:var(--muted)">PDF</a>`
+          :`<button type="button" data-slip="${esc(p.id)}" class="panel" style="aspect-ratio:3/4;padding:0;overflow:hidden" aria-label="ดูสลิป"><img src="${esc(src)}" alt="สลิปโอนเงิน" style="width:100%;height:100%;object-fit:cover"></button>`}
+        ${S.isAdmin?(S.payDel===p.id?`<div class="row" style="gap:6px;justify-content:center"><button class="btn small" data-paydelyes="${esc(p.id)}" type="button">ลบ</button><button class="btn sec small" data-paydelno type="button">ไม่ลบ</button></div>`
+          :`<button class="x" data-paydel="${esc(p.id)}" type="button" style="font-size:.82rem">ลบสลิป</button>`):""}
+      </div>`}).join("")}</div>`:`<div class="empty" style="padding:20px">ยังไม่มีสลิป</div>`}
     ${S.slipView?`<div class="panel" style="display:flex;flex-direction:column;gap:8px;align-items:center">
       <img src="${esc(slipSrc(S.slipView))}" alt="สลิปโอนเงิน" style="max-height:80vh;width:auto;border-radius:8px">
       <button class="btn sec small" id="slipClose" type="button">ปิด</button></div>`:""}
@@ -1200,12 +1178,12 @@ function bind(){
       if(await write(()=>ref.set(body),S.editEvent?"บันทึกการแก้ไขแล้ว":"ยืนยันงานแล้ว")){
         logAct(S.editEvent?"edit":"new",{id:ref.id,...body},`${body.format} · ${datesText(body.dates)} · ${body.venue}`);
         S.events=S.events.filter(x=>x.id!==ref.id).concat([{id:ref.id,...body}]);
-        const f=!booth&&S.slipFile,sl={amount:Math.max(eventTotal(body)-n(body.paid),0),date:today(),time:"",payer:"",bank:"",ref:"",kind:""};
+        const f=!booth&&S.slipFile,sl={amount:0,date:today(),time:"",payer:"",bank:"",ref:"",kind:""};
         if(f&&S.assets){try{
           const up=await S.assets.upload(f,f.type?undefined:{type:/\.pdf$/i.test(f.name)?"application/pdf":"image/jpeg"});
           const pay={assetId:up.id,contentType:up.contentType,amount:n(sl.amount),date:sl.date,time:sl.time||"",payer:sl.payer||"",bank:sl.bank||"",ref:sl.ref||"",kind:sl.kind||"",by:S.uid||"",at:new Date().toISOString()};
           await S.db.collection(base+"/events/"+ref.id+"/payments").doc().set(pay);
-          await S.db.doc(base+"/events/"+ref.id).update({paid:n(body.paid)+n(sl.amount)});logAct("slip",{id:ref.id,...body},`฿${fmt(sl.amount,2)} · ${sl.kind||""}`);toast("ยืนยันงานและแนบสลิปแล้ว");
+          logAct("slip",{id:ref.id,...body},"แนบสลิป");toast("ยืนยันงานและแนบสลิปแล้ว");
         }catch(x){toast("บันทึกงานแล้ว แต่แนบสลิปไม่สำเร็จ แนบใหม่ได้ในหน้างาน")}}
         S.slipFile=null;go("event",{id:ref.id})}
       else if(sub){sub.disabled=false;sub.textContent=S.editEvent?"บันทึกการแก้ไข":"ยืนยันงาน"}
@@ -1218,25 +1196,25 @@ function bind(){
     fillNames();
     on("[data-evtab]","click",ev=>{rerender();S.evTab=ev.currentTarget.dataset.evtab;render();window.scrollTo(0,0)});
     on("[data-day]","click",ev=>{S.draft=null;S.day=ev.currentTarget.dataset.day;render()});
-    const syncPaid=async()=>{const paid=(S.payments||[]).reduce((a,p)=>a+n(p.amount),0);
+    const syncPaid=async()=>{return;const paid=(S.payments||[]).reduce((a,p)=>a+n(p.amount),0);
       try{await S.db.doc(base+"/events/"+e.id).update({paid})}catch(_){}};
     if($("#payNew"))$("#payNew").onclick=()=>{S.payOpen=true;S.payDraft=null;rerender()};
     if($("#payCancel"))$("#payCancel").onclick=()=>{S.payOpen=false;S.payDraft=null;rerender()};
     on("[data-slip]","click",ev=>{const p=S.payments.find(x=>x.id===ev.currentTarget.dataset.slip);if(!p)return;
       if(p.contentType==="application/pdf")return;S.slipView=S.slipView===p.assetId?null:p.assetId;rerender()});
     if($("#slipClose"))$("#slipClose").onclick=()=>{S.slipView=null;rerender()};
-    if($("#paySave"))$("#paySave").onclick=async ev=>{
-      const f=$("#p-file").files[0],err=$("#payErr");
-      if(!f){err.textContent="เลือกไฟล์สลิปก่อน";err.hidden=false;return}
-      const left=Math.max(eventTotal(e)-(S.payments||[]).reduce((a,p)=>a+n(p.amount),0),0),pd={amount:left,date:today(),time:"",payer:"",bank:"",ref:"",kind:""};
-      if(f.size>20*1024*1024){err.textContent="ไฟล์ใหญ่เกิน 20 MB";err.hidden=false;return}
-      const btn=ev.currentTarget;btn.disabled=true;btn.textContent="กำลังอัปโหลด…";
-      let up;try{up=await S.assets.upload(f,f.type?undefined:{type:/\.pdf$/i.test(f.name)?"application/pdf":"image/jpeg"})}
-      catch(x){btn.disabled=false;btn.textContent="แนบสลิป";err.textContent=x?.code==="unsupported_type"?"รองรับเฉพาะรูป PNG/JPG/WEBP หรือ PDF":x?.code==="too_large"?"ไฟล์ใหญ่เกินกำหนด":"อัปโหลดไม่สำเร็จ ลองใหม่อีกครั้ง";err.hidden=false;return}
-      const body={assetId:up.id,contentType:up.contentType,amount:n(pd.amount),date:pd.date,time:pd.time,payer:pd.payer,bank:pd.bank,ref:pd.ref,kind:pd.kind,by:S.uid||"",at:new Date().toISOString()};
-      const ref=S.db.collection(base+"/events/"+e.id+"/payments").doc();
-      if(await write(()=>ref.set(body),"แนบสลิปแล้ว")){logAct("slip",e,`฿${fmt(body.amount,2)} · ${body.kind||""}`);S.payments=[...S.payments,{id:ref.id,...body}];S.payOpen=false;S.payDraft=null;await syncPaid();rerender()}
-      else{btn.disabled=false;btn.textContent="แนบสลิป"}};
+    if($("#p-file"))$("#p-file").addEventListener("change",async ev=>{
+      const f=ev.target.files[0];if(!f)return;
+      if(f.size>20*1024*1024){toast("ไฟล์ใหญ่เกิน 20 MB");return}
+      S.payBusy=true;render();
+      try{
+        const up=await S.assets.upload(f,f.type?undefined:{type:/\.pdf$/i.test(f.name)?"application/pdf":"image/jpeg"});
+        const body={assetId:up.id,contentType:up.contentType,amount:0,date:today(),time:"",payer:"",bank:"",ref:"",kind:"",by:S.uid||"",at:new Date().toISOString()};
+        const ref=S.db.collection(base+"/events/"+e.id+"/payments").doc();
+        if(await write(()=>ref.set(body),"แนบสลิปแล้ว")){logAct("slip",e,"แนบสลิป");S.payments=[...(S.payments||[]),{id:ref.id,...body}]}
+      }catch(x){toast(x?.code==="unsupported_type"?"รองรับเฉพาะรูป PNG/JPG/WEBP หรือ PDF":x?.code==="too_large"?"ไฟล์ใหญ่เกินกำหนด":"แนบสลิปไม่สำเร็จ ลองใหม่อีกครั้ง")}
+      S.payBusy=false;rerender();
+    });
     on("[data-paydel]","click",ev=>{S.payDel=ev.currentTarget.dataset.paydel;rerender()});
     on("[data-paydelno]","click",()=>{S.payDel=null;rerender()});
     on("[data-paydelyes]","click",async ev=>{const id=ev.currentTarget.dataset.paydelyes,p=S.payments.find(x=>x.id===id);
