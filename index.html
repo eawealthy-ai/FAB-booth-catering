@@ -1048,7 +1048,10 @@ function viewUsers(){
     <div id="uResults" style="display:flex;flex-direction:column;gap:4px"></div>
   </div>
   ${ids.length?`<div class="tbl-wrap"><table><thead><tr><th>ผู้ใช้</th>${Object.keys(BRANDS).map(b=>`<th>${esc(BRANDS[b].name)}</th>`).join("")}<th>สิทธิ์</th><th></th></tr></thead><tbody>
-  ${ids.map(id=>{const m=S.members[id];return `<tr><td><span data-uname="${esc(id)}">…</span></td>
+  ${ids.map(id=>{const m=S.members[id];if(m.role==="owner"||id===S.uid)return `<tr><td><span data-uname="${esc(id)}">…</span></td>
+    ${Object.keys(BRANDS).map(b=>`<td>${m.role==="owner"||(m.brands||[]).includes(b)?"✓":"–"}</td>`).join("")}
+    <td class="muted">${m.role==="owner"?"เจ้าของระบบ":(ROLE_LABEL[m.role]||m.role)} · ${id===S.uid?"บัญชีของคุณ (แก้เองไม่ได้)":"แก้ได้ใน Supabase"}</td><td></td></tr>`;
+    return `<tr><td><span data-uname="${esc(id)}">…</span></td>
     ${Object.keys(BRANDS).map(b=>`<td><input type="checkbox" id="ub-${esc(id)}-${b}" data-ub="${esc(id)}" data-brand="${b}" ${(m.brands||[]).includes(b)?"checked":""} style="width:auto" aria-label="${esc(BRANDS[b].name)}"></td>`).join("")}
     <td><select id="ur-${esc(id)}" data-ur="${esc(id)}">${Object.entries(ROLE_LABEL).map(([k,l])=>`<option value="${k}" ${m.role===k?"selected":""}>${l}</option>`).join("")}</select></td>
     <td>${S.confirmDel==="u:"+id?`<button class="btn small" data-urmyes="${esc(id)}" type="button">ยืนยันลบ</button>`:`<button class="x" data-urm="${esc(id)}" type="button" aria-label="ลบผู้ใช้">×</button>`}</td></tr>`}).join("")}

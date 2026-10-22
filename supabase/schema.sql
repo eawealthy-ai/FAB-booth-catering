@@ -209,7 +209,8 @@ drop policy if exists profiles_read on public.profiles;
 create policy profiles_read on public.profiles for select to authenticated using (true);
 drop policy if exists profiles_admin_write on public.profiles;
 create policy profiles_admin_write on public.profiles for update to authenticated
-  using (public.is_sys()) with check (public.is_sys() and (role <> 'owner' or public.my_role() = 'owner'));
+  using (public.is_sys() and role <> 'owner' and id <> auth.uid())
+  with check (public.is_sys() and role <> 'owner');
 drop policy if exists profiles_admin_delete on public.profiles;
 create policy profiles_admin_delete on public.profiles for delete to authenticated
   using (public.is_sys() and role <> 'owner');
