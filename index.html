@@ -326,6 +326,7 @@ const FC_ROWS=[["foodPct","ต้นทุนอาหาร (% ของยอ�
   ["allowance","เบี้ยเลี้ยง","บาท/คน/วัน","ตามที่ร้านกำหนด"],["hotelRoom","ค่าที่พัก","บาท/ห้อง/คืน","คิดทุกคืนเท่ากับจำนวนวันงาน"],
   ["perRoom","พักห้องละ","คน","ตามที่ร้านกำหนด"],["transport","ค่ารถขนส่ง","บาท/งาน","โดยประมาณ"],["other","ค่าอื่น ๆ","บาท/งาน","ค่าน้ำแข็ง, ค่าขนส่งของระหว่างวัน"]];
 const fcNow=()=>({...FC_DEFAULT,...(S.fc||{})});
+const fcMissing=()=>!S.fc||FC_ROWS.some(([k])=>S.fc[k]===null||S.fc[k]===undefined||S.fc[k]==="");
 function calcFeas(e,fcOverride){
   const f={...FC_DEFAULT,...(fcOverride||e.feasFc||S.fc||{})},fe=e.feas||{},days=sortedDates(e).length||1,staff=n(fe.staff);
   const vatIn=e.vatIncluded!==false,gross=n(fe.salesPerDay)*days,net=vatIn?gross/(1+VAT):gross;
@@ -644,6 +645,7 @@ function formSlip(e){
 function boothInputs(e){
   const fe=e.feas||{};
   return `<div style="display:flex;flex-direction:column;gap:12px;border-top:1px solid var(--line);padding-top:14px">
+    ${fcMissing()?`<p class="notice warn" style="margin:0">ยังไม่ได้กรอก Fixed cost Booth ของแบรนด์ ${esc(BRANDS[S.brand].name)} ครบ ค่าใช้จ่ายที่ว่างจะคิดเป็น 0 · กรอกได้ที่แท็บ เมนู &amp; BOM</p>`:""}
     <div><h3>Feasibility บูธ</h3><p class="muted" style="margin:2px 0 0;font-size:.85rem">ใส่ Target sales และค่าเช่าเอง ค่าใช้จ่ายอื่นคิดจาก Fixed cost Booth ของแบรนด์ (แก้ได้ในแท็บเมนู &amp; BOM)</p></div>
     <div class="grid">
       <label>Target sales ต่อวัน (บาท) *<input id="f-fs-sales" type="number" min="0" value="${esc(fe.salesPerDay)}"></label>
@@ -1044,10 +1046,10 @@ function readPL(){
 function fcPanel(atEnd){
   const f=fcNow(),dis=S.isAdmin?"":"disabled";
   const html=`<section class="panel" style="display:flex;flex-direction:column;gap:10px">
-    <div class="row" style="justify-content:space-between"><div><h2>Fixed cost Booth</h2><p class="muted" style="margin:2px 0 0;font-size:.85rem">ใช้คำนวณ Feasibility ของงาน Booth ในแบรนด์ ${esc(BRANDS[S.brand].name)}${S.fc?"":" · ยังเป็นค่าตั้งต้นจากไฟล์ Fixed Cost Booth"}</p></div>
+    <div class="row" style="justify-content:space-between"><div><h2>Fixed cost Booth</h2><p class="muted" style="margin:2px 0 0;font-size:.85rem">ใช้คำนวณ Feasibility ของงาน Booth ในแบรนด์ ${esc(BRANDS[S.brand].name)}${fcMissing()?" · ยังกรอกไม่ครบ":""}</p></div>
       ${S.isAdmin?`<button class="btn small" id="saveFc" type="button">บันทึก Fixed cost</button>`:""}</div>
     <div class="tbl-wrap"><table><thead><tr><th>รายการ</th><th class="r">ค่า</th><th>หน่วย</th><th>ที่มา</th></tr></thead><tbody>
-    ${FC_ROWS.map(([k,l,u,src])=>`<tr><td>${l}</td><td class="r"><input id="fc-${k}" type="number" step="any" value="${k==="foodPct"?+(n(f[k])*100).toFixed(4):esc(f[k])}" style="width:110px;text-align:right" ${dis}></td><td class="muted">${u}</td><td class="muted">${src}</td></tr>`).join("")}
+    ${FC_ROWS.map(([k,l,u,src])=>`<tr><td>${l}</td><td class="r"><input id="fc-${k}" type="number" step="any" value="${f[k]===null||f[k]===undefined||f[k]===""?"":k==="foodPct"?+(n(f[k])*100).toFixed(4):esc(f[k])}" placeholder="กรอก" style="width:110px;text-align:right" ${dis}></td><td class="muted">${u}</td><td class="muted">${src}</td></tr>`).join("")}
     <tr class="total"><td>ค่า OT ต่อชั่วโมง (คำนวณ)</td><td class="r num">${fmt(n(f.wage)/8*n(f.otRate),3)}</td><td class="muted">บาท</td><td class="muted">ค่าแรงต่อวัน ÷ 8 ชม. × อัตรา OT</td></tr>
     </tbody></table></div></section>`;
   return html;
@@ -1307,8 +1309,8 @@ function bind(){
   /* menus */
   if(S.view==="menus"){
     if($("#saveFc"))$("#saveFc").onclick=async()=>{
-      const body={};FC_ROWS.forEach(([k])=>{const v=n($("#fc-"+k).value);body[k]=k==="foodPct"?v/100:v});
-      if(!(body.foodPct<1)){toast("ต้นทุนอาหารต้องน้อยกว่า 100%");return}
+      const body={};FC_ROWS.forEach(([k])=>{const raw=$("#fc-"+k).value.trim();if(raw===""){body[k]=null;return}const v=n(raw);body[k]=k==="foodPct"?v/100:v});
+      if(body.foodPct!==null&&!(body.foodPct<1)){toast("ต้นทุนอาหารต้องน้อยกว่า 100%");return}
       body.updatedAt=new Date().toISOString();
       if(await write(()=>S.db.doc(base+"/settings/booth").set(body),"บันทึก Fixed cost แล้ว")){S.fc=body;render()}};
     on("[data-editmenu]","click",ev=>{S.draft=null;S.editMenu=ev.currentTarget.dataset.editmenu;render()});
