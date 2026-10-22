@@ -201,7 +201,7 @@ body::before{background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop
 .ghost:hover{border-color:var(--brand)}
 .tab{color:var(--muted);opacity:1}
 .tab[aria-current="page"]{color:var(--ink);border-bottom-color:var(--brand)}
-#notifBadge{background:var(--grad)!important;color:#fff!important}
+.nbadge{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;margin-left:6px;border-radius:11px;background:#e5484d;color:#fff;font:700 .78rem var(--f-num);font-variant-numeric:tabular-nums;vertical-align:2px;box-shadow:0 0 0 2px var(--surface)}
 .panel,.ev,.daytab,.pos-tile,.ticket,.tbl-wrap{border-radius:20px;border-color:var(--line)}
 .panel,.ev,.tbl-wrap{box-shadow:var(--shadow)}
 .panel,.ev{background:var(--surface)}
@@ -268,7 +268,7 @@ tr.total td{background:var(--brand-soft)}
       <button class="tab" data-view="events" type="button">งานทั้งหมด</button>
       <button class="tab" data-view="new" id="tabNew" type="button">+ ลงทะเบียนงาน</button>
       <button class="tab" data-view="menus" id="tabMenus" type="button" hidden>เมนู &amp; BOM</button>
-      <button class="tab" data-view="notif" id="tabNotif" type="button">แจ้งเตือน<span id="notifBadge" class="chip" style="margin-left:6px;padding:0 7px;background:var(--brand-ink);color:var(--brand);border:0" hidden></span></button>
+      <button class="tab" data-view="notif" id="tabNotif" type="button" style="position:relative">แจ้งเตือน<span id="notifBadge" class="nbadge" aria-live="polite" hidden></span></button>
       <button class="tab" data-view="users" id="tabUsers" type="button" hidden>ผู้ใช้ &amp; สิทธิ์</button>
     </nav>
   </div></header>
@@ -521,7 +521,8 @@ function render(){
   $("#roleChip").textContent=S.isOwner?"เจ้าของระบบ":pend?"ดูอย่างเดียว (รอสิทธิ์ Editor)":(ROLE_LABEL[role]||"ดูอย่างเดียว");
   $("#tabNew").hidden=!S.isAdmin;
   $("#tabUsers").hidden=!S.isSys;
-  {const u=unreadCount(),b=$("#notifBadge");b.hidden=!u;b.textContent=u>99?"99+":String(u)}
+  {const u=unreadCount(),b=$("#notifBadge");b.hidden=!u;b.textContent=u>99?"99+":String(u);b.setAttribute("aria-label",u+" รายการยังไม่อ่าน");
+   const base="Booth & Catering Desk";document.title=u?`(${u>99?"99+":u}) ${base}`:base}
   $("#tabMenus").hidden=!S.isSys;
   $("#switchBrand").hidden=allowedBrands().length<2;
   if((S.view==="users"||S.view==="menus")&&!S.isSys)S.view="events";
@@ -807,7 +808,7 @@ function viewNotif(){
   const acts=S.acts||[],mine=S.notifPrevSeen??seenAt(S.uid);
   const readers=Object.keys(S.reads||{});
   if(!acts.length)return `<div><h1>แจ้งเตือน</h1></div><div class="empty">ยังไม่มีความเคลื่อนไหว<br>การลงทะเบียน แก้ไขงาน อัปเดต สลิป และการบันทึกยอดขายจะแสดงที่นี่</div>`;
-  return `<div class="row" style="justify-content:space-between"><div><h1>แจ้งเตือน</h1><p class="muted" style="margin:2px 0 0;font-size:.85rem">ความเคลื่อนไหวล่าสุดของแบรนด์ ${esc(BRANDS[S.brand].name)} · แสดงว่าใครเปิดอ่านแล้ว</p></div></div>
+  return `<div class="row" style="justify-content:space-between"><div><h1>แจ้งเตือน ${(()=>{const c=acts.filter(a=>a.by!==S.uid&&String(a.at)>mine).length;return c?`<span class="nbadge" style="vertical-align:6px">${c}</span>`:""})()}</h1><p class="muted" style="margin:2px 0 0;font-size:.85rem">ความเคลื่อนไหวล่าสุดของแบรนด์ ${esc(BRANDS[S.brand].name)} · แสดงว่าใครเปิดอ่านแล้ว</p></div></div>
   ${S.cantMark?`<p class="notice info" style="margin:0">บัญชีนี้บันทึกสถานะ “อ่านแล้ว” ไม่ได้ ต้องมีสิทธิ์ Contributor ขึ้นไปในเมนู Share</p>`:""}
   <div style="display:flex;flex-direction:column;gap:8px">${acts.map(a=>{
     const unread=a.by!==S.uid&&String(a.at)>mine;
