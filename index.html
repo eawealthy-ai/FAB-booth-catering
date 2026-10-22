@@ -988,6 +988,21 @@ function viewOverall(){
     ${mdata.map(r=>`<tr><td>${TH_MF[+r.ym.slice(5)-1]}</td>${brands.map(b=>`<td class="r num">${r[b].g?fmt(r[b].g):"–"}</td>`).join("")}<td class="r num">${r.g?fmt(r.g):"–"}</td><td class="r num">${r.tg?fmt(r.tg):"–"}</td><td class="r num ${r.np<0?"neg":r.np>0?"pos":""}">${r.g?fmt(r.np):"–"}</td><td class="r num">${r.g?pct(r.np,r.net):"–"}</td></tr>`).join("")}
     <tr class="total"><td>รวมทั้งปี</td>${brands.map(b=>`<td class="r num">${fmt(per[b].t.g)}</td>`).join("")}<td class="r num">${fmt(all.g)}</td><td class="r num">${fmt(all.tg)}</td><td class="r num ${all.np<0?"neg":"pos"}">${fmt(all.np)}</td><td class="r num">${pct(all.np,all.net)}</td></tr>
   </tbody></table></div>
+  ${(()=>{const bf=S.ovBrand||"all",list=brands.filter(b=>bf==="all"||bf===b).flatMap(b=>per[b].rows.map(r=>({...r,b}))).sort((x,y)=>x.days[0].localeCompare(y.days[0]));
+    const bud=r=>{if(!r.booth||!r.e.feas||!n(r.e.feas.salesPerDay))return null;try{return calcFeas(r.e).np}catch(_){return null}};
+    let T={tg:0,bnp:0,g:0,np:0,net:0};
+    const body=list.map(r=>{const[cls,lab]=eventStatus(r.e),bn=bud(r);T.tg+=r.tg;if(bn!=null)T.bnp+=bn;if(r.a){T.g+=n(r.a.gross);T.np+=n(r.a.np);T.net+=n(r.a.net)}
+      return `<tr data-ovopen="${r.b}|${esc(r.e.id)}" style="cursor:pointer"><td>${dot(r.b)}${esc(BRANDS[r.b].name)}</td>
+      <td style="white-space:nowrap">${datesText(r.days)}${r.days.length>1?` <span class="muted">(${r.days.length} วัน)</span>`:""}</td>
+      <td><b>${esc(r.e.customer)}</b><div class="muted" style="font-size:.8rem">${esc(r.e.venue||"")}</div></td>
+      <td>${esc(r.e.format)}</td><td><span class="pill ${cls}">${lab}</span></td>
+      <td class="r num">${fmt(r.tg)}</td><td class="r num ${bn!=null?(bn<0?"neg":"pos"):""}">${bn!=null?fmt(bn):"–"}</td>
+      <td class="r num">${r.a?fmt(r.a.gross):"–"}</td><td class="r num ${r.a?(n(r.a.np)<0?"neg":"pos"):""}">${r.a?fmt(r.a.np):"–"}</td><td class="r num">${r.a?pct(r.a.np,r.a.net):"–"}</td></tr>`}).join("");
+    return `<section style="display:flex;flex-direction:column;gap:10px"><div class="row" style="justify-content:space-between"><h2>รายละเอียดงาน</h2>
+      <div class="row" style="gap:6px">${[["all","ทั้งหมด"],...brands.map(b=>[b,BRANDS[b].name])].map(([k,l])=>`<button type="button" class="fbtn" data-ovb="${k}" aria-pressed="${bf===k}">${l}</button>`).join("")}</div></div>
+      ${list.length?`<div class="tbl-wrap"><table><thead><tr><th>แบรนด์</th><th>วันที่</th><th>งาน</th><th>รูปแบบ</th><th>สถานะ</th><th class="r">Target / มูลค่างาน</th><th class="r">Budget กำไร</th><th class="r">ยอดขาย (inc. VAT)</th><th class="r">กำไร/ขาดทุน</th><th class="r">%</th></tr></thead><tbody>${body}
+      <tr class="total"><td colspan="5">รวม ${list.length} งาน</td><td class="r num">${fmt(T.tg)}</td><td class="r num">${fmt(T.bnp)}</td><td class="r num">${fmt(T.g)}</td><td class="r num ${T.np<0?"neg":"pos"}">${fmt(T.np)}</td><td class="r num">${pct(T.np,T.net)}</td></tr></tbody></table></div>`:`<div class="empty">ไม่มีงานในปีนี้</div>`}
+    </section>`})()}
   <p class="muted" style="margin:0;font-size:.8rem">ยอดขาย/กำไร มาจาก P&amp;L ที่บันทึกแล้ว · % คิดจากยอดขายก่อน VAT · บูธนับตามวันที่ออกบูธ · Catering นับตามวันแรก · ไม่รวมงานที่ยกเลิก${S.allAt?` · ข้อมูล ณ ${S.allAt.toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit"})}`:""}</p>`;
 }
 /* monthly dashboard */
@@ -1311,6 +1326,8 @@ function bind(){
   if(S.view==="overall"){
     on("[data-ovy]","click",ev=>{S.ovYear+= +ev.currentTarget.dataset.ovy;render()});
     if($("#ovRefresh"))$("#ovRefresh").onclick=()=>loadAllEvents();
+    on("[data-ovb]","click",ev=>{S.ovBrand=ev.currentTarget.dataset.ovb;render()});
+    on("[data-ovopen]","click",ev=>{const[b,id]=ev.currentTarget.dataset.ovopen.split("|");if(b!==S.brand){if(!allowedBrands().includes(b))return;leaveBrand();enterBrand(b)}go("event",{id})});
   }
   if(S.view==="dash"){
     on("[data-dm]","click",ev=>{S.dashMonth=ymShift(S.dashMonth,+ev.currentTarget.dataset.dm);S.rpFrom=S.rpTo=null;render()});
