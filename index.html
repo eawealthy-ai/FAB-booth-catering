@@ -326,6 +326,10 @@ const FC_ROWS=[["foodPct","ต้นทุนอาหาร (% ของยอ�
   ["allowance","เบี้ยเลี้ยง","บาท/คน/วัน","ตามที่ร้านกำหนด"],["hotelRoom","ค่าที่พัก","บาท/ห้อง/คืน","คิดทุกคืนเท่ากับจำนวนวันงาน"],
   ["perRoom","พักห้องละ","คน","ตามที่ร้านกำหนด"],["transport","ค่ารถขนส่ง","บาท/งาน","โดยประมาณ"],["other","ค่าอื่น ๆ","บาท/งาน","ค่าน้ำแข็ง, ค่าขนส่งของระหว่างวัน"]];
 const fcNow=()=>({...FC_DEFAULT,...(S.fc||{})});
+const INLINE_FC_BRANDS=["tsc"];
+const inlineFc=()=>INLINE_FC_BRANDS.includes(S.brand);
+const blankFc=()=>Object.fromEntries(FC_ROWS.map(([k])=>[k,null]));
+const formFc=e=>inlineFc()?(e.feasFc||blankFc()):fcNow();
 const fcMissing=()=>!S.fc||FC_ROWS.some(([k])=>S.fc[k]===null||S.fc[k]===undefined||S.fc[k]==="");
 function calcFeas(e,fcOverride){
   const f={...FC_DEFAULT,...(fcOverride||e.feasFc||S.fc||{})},fe=e.feas||{},days=sortedDates(e).length||1,staff=n(fe.staff);
@@ -625,7 +629,7 @@ function viewForm(){
     <label>หมายเหตุ<textarea id="f-note">${esc(e.note)}</textarea></label>
     <div class="row" style="justify-content:space-between;border-top:1px solid var(--line);padding-top:14px">
       ${isBooth(e)?`<div><div class="sectionlabel">Target sales ทั้งงาน</div><div class="num" style="font-size:1.4rem;font-weight:600">฿${fmt(total)}</div>
-        <div class="muted" style="font-size:.82rem">กำไรสุทธิตาม Target ฿${fmt(calcFeas(e,fcNow()).np)}</div></div>`
+        <div class="muted" style="font-size:.82rem">กำไรสุทธิตาม Target ฿${fmt(calcFeas(e,formFc(e)).np)}</div></div>`
       :`<div><div class="sectionlabel">ยอดรวมทั้งงาน</div><div class="num" style="font-size:1.4rem;font-weight:600">฿${fmt(total)}</div>
         <div class="muted" style="font-size:.82rem">อาหาร ฿${fmt(total-n(e.cateringFeePerDay)*(e.dates.filter(Boolean).length||1))} + ค่าบริการ ฿${fmt(n(e.cateringFeePerDay))} × ${e.dates.filter(Boolean).length||1} วัน</div></div>`}
       <div class="row"><button class="btn sec" type="button" id="cancelForm">ยกเลิก</button><button class="btn" type="submit">${S.editEvent?"บันทึกการแก้ไข":"ยืนยันงาน"}</button></div>
@@ -646,7 +650,7 @@ function formSlip(e){
 function boothInputs(e){
   const fe=e.feas||{};
   return `<div style="display:flex;flex-direction:column;gap:12px;border-top:1px solid var(--line);padding-top:14px">
-    ${fcMissing()?`<p class="notice warn" style="margin:0">ยังไม่ได้กรอก Fixed cost Booth ของแบรนด์ ${esc(BRANDS[S.brand].name)} ครบ ค่าใช้จ่ายที่ว่างจะคิดเป็น 0 · กรอกได้ที่แท็บ เมนู &amp; BOM</p>`:""}
+    ${!inlineFc()&&fcMissing()?`<p class="notice warn" style="margin:0">ยังไม่ได้กรอก Fixed cost Booth ของแบรนด์ ${esc(BRANDS[S.brand].name)} ครบ ค่าใช้จ่ายที่ว่างจะคิดเป็น 0 · กรอกได้ที่แท็บ เมนู &amp; BOM</p>`:""}
     <div><h3>Feasibility บูธ</h3><p class="muted" style="margin:2px 0 0;font-size:.85rem">ใส่ Target sales และค่าเช่าเอง ค่าใช้จ่ายอื่นคิดจาก Fixed cost Booth ของแบรนด์ (แก้ได้ในแท็บเมนู &amp; BOM)</p></div>
     <div class="grid">
       <label>Target sales ต่อวัน (บาท) *<input id="f-fs-sales" type="number" min="0" value="${esc(fe.salesPerDay)}"></label>
@@ -657,7 +661,9 @@ function boothInputs(e){
         <label style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="f-vat" ${e.vatIncluded!==false?"checked":""} style="width:auto"> ยอดขายรวม VAT 7%</label>
       </div>
     </div>
-    ${feasPanel(e,calcFeas(e,fcNow()))}
+    ${inlineFc()?(()=>{const f=formFc(e);return `<div><div class="sectionlabel" style="margin-bottom:6px">ค่าใช้จ่ายของงานนี้ (กรอกเอง · เว้นว่างได้)</div>
+      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">${FC_ROWS.map(([k,l,u])=>`<label>${l} <span style="font-weight:400">(${u})</span><input id="ffc-${k}" type="number" step="any" min="0" placeholder="กรอก" value="${f[k]===null||f[k]===undefined||f[k]===""?"":k==="foodPct"?+(n(f[k])*100).toFixed(4):esc(f[k])}"></label>`).join("")}</div></div>`})():""}
+    ${feasPanel(e,calcFeas(e,formFc(e)))}
   </div>`;
 }
 function readForm(){
@@ -666,6 +672,7 @@ function readForm(){
   e.guests=$("#f-guests")?$("#f-guests").value:e.guests;e.venue=$("#f-venue").value.trim();e.mapUrl=$("#f-map").value.trim();e.serveFrom=$("#f-from").value;e.serveTo=$("#f-to").value;
   e.status=$("#f-status").value;
   if($("#f-fee")){e.cateringFeePerDay=$("#f-fee").value;e.distributionNote=$("#f-dist").value.trim()}
+  if($("#ffc-foodPct"))e.feasFc=Object.fromEntries(FC_ROWS.map(([k])=>{const raw=$("#ffc-"+k).value.trim();if(raw==="")return [k,null];const v=n(raw);return [k,k==="foodPct"?v/100:v]}));
   if($("#f-fs-sales"))e.feas={salesPerDay:$("#f-fs-sales").value,rent:$("#f-fs-rent").value,staff:$("#f-fs-staff").value,stay:$("#f-fs-stay").checked};
   e.vatIncluded=$("#f-vat").checked;e.note=$("#f-note").value;
   e.packages=e.packages.map((p,i)=>({...p,name:$("#f-pk-name-"+i).value.trim(),price:$("#f-pk-price-"+i).value,qty:$("#f-pk-qty-"+i).value}));
@@ -708,7 +715,7 @@ function viewEvent(){
     </dl>
   </section>`:compactHead}
   ${isBooth(e)&&tab==="info"?`<section style="display:flex;flex-direction:column;gap:10px"><h2>Feasibility บูธ</h2>${feasPanel(e,calcFeas(e))}
-    <p class="muted" style="margin:0;font-size:.82rem">คิดจาก Fixed cost Booth ณ วันที่บันทึกงาน · กดแก้ไขงานเพื่อคำนวณใหม่ด้วยค่าปัจจุบัน</p></section>`:""}
+    <p class="muted" style="margin:0;font-size:.82rem">${inlineFc()?"คิดจากค่าใช้จ่ายที่กรอกไว้ในงานนี้ · กดแก้ไขงานเพื่อเปลี่ยนตัวเลข":"คิดจาก Fixed cost Booth ณ วันที่บันทึกงาน · กดแก้ไขงานเพื่อคำนวณใหม่ด้วยค่าปัจจุบัน"}</p></section>`:""}
   ${!isBooth(e)&&tab==="info"?viewPayments(e):""}
   ${tab==="info"?viewUpdates(e):""}
   ${!isBooth(e)?(tab!=="pl"?"":`<section style="display:flex;flex-direction:column;gap:12px"><h2>งบกำไรขาดทุน</h2>
@@ -1061,8 +1068,8 @@ function viewMenus(){
     ${S.isAdmin&&S.editMenu===null?`<button class="btn" id="newMenu" type="button">+ เพิ่มเมนู</button>`:""}</div>`;
   if(S.editMenu!==null)return head+menuEditor();
   if(!S.mnReady)return head+`<div class="empty">กำลังโหลดเมนู…</div>`;
-  if(!S.menus.length)return head+`<div class="empty">ยังไม่มีเมนู${S.isAdmin?"<br>เพิ่มเมนูพร้อม BOM เพื่อให้ P&amp;L คำนวณต้นทุนได้":""}</div>`+fcPanel();
-  return head+fcPanel(true)+`<div class="tbl-wrap"><table><thead><tr><th>เมนู / ชุด</th><th class="r">ราคาขาย</th><th class="r">ราคาไม่รวม VAT</th><th class="r">ต้นทุน BOM</th><th class="r">Food cost %</th><th class="r">วัตถุดิบ</th><th></th></tr></thead><tbody>
+  if(!S.menus.length)return head+`<div class="empty">ยังไม่มีเมนู${S.isAdmin?"<br>เพิ่มเมนูพร้อม BOM เพื่อให้ P&amp;L คำนวณต้นทุนได้":""}</div>`+(inlineFc()?"":fcPanel());
+  return head+(inlineFc()?"":fcPanel(true))+`<div class="tbl-wrap"><table><thead><tr><th>เมนู / ชุด</th><th class="r">ราคาขาย</th><th class="r">ราคาไม่รวม VAT</th><th class="r">ต้นทุน BOM</th><th class="r">Food cost %</th><th class="r">วัตถุดิบ</th><th></th></tr></thead><tbody>
   ${[...S.menus].sort((a,b)=>a.name.localeCompare(b.name,"th")).map(m=>{const c=menuCost(m),ex=n(m.price)/(1+VAT);return `<tr>
     <td><b>${esc(m.name)}</b></td><td class="r num">${fmt(m.price,2)}</td><td class="r num">${fmt(ex,2)}</td>
     <td class="r num">${c?fmt(c,2):`<span class="flag">ยังไม่ใส่ต้นทุน</span>`}</td><td class="r num">${c?pct(c,ex):"–"}</td>
@@ -1196,7 +1203,7 @@ function bind(){
       const body={paid:n(S.editEvent?.paid),...(S.editEvent?.actual?{actual:S.editEvent.actual}:{}),format:e.format,customer:e.customer,phone:e.phone,dates:[...new Set(dates)].sort(),serveFrom:e.serveFrom,serveTo:e.serveTo,
         venue:e.venue,mapUrl:e.mapUrl||"",guests:isBooth(e)?0:n(e.guests),packages:e.packages.filter(p=>p.name).map(p=>({menuId:p.menuId||(S.menus.find(m=>m.name===p.name)||{}).id||"",name:p.name,price:n(p.price),qty:n(p.qty)})),
         distributionNote:booth?"":e.distributionNote,cateringFeePerDay:booth?0:n(e.cateringFeePerDay),
-        feas:booth?{salesPerDay:n(fe.salesPerDay),rent:n(fe.rent),staff:n(fe.staff),stay:!!fe.stay}:null,feasFc:booth?fcNow():null,vatIncluded:e.vatIncluded,status:e.status,note:e.note,
+        feas:booth?{salesPerDay:n(fe.salesPerDay),rent:n(fe.rent),staff:n(fe.staff),stay:!!fe.stay}:null,feasFc:booth?formFc(e):null,vatIncluded:e.vatIncluded,status:e.status,note:e.note,
         createdBy:S.editEvent?.createdBy||S.uid||"",createdAt:S.editEvent?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
       const ref=S.editEvent?S.db.doc(base+"/events/"+S.editEvent.id):S.db.collection(base+"/events").doc();
       const sub=ev.submitter||$("#evForm button[type=submit]");if(sub){sub.disabled=true;sub.textContent="กำลังบันทึก…"}
