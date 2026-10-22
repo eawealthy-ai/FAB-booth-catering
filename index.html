@@ -758,6 +758,7 @@ function viewEvent(){
       ${e.note?`<div><dt>หมายเหตุ</dt><dd>${esc(e.note)}</dd></div>`:""}
     </dl>
   </section>`:compactHead}
+  ${tab==="pl"&&S.downloads?`<div class="row" style="justify-content:flex-end"><button class="btn" id="pdfPL" type="button">Export PDF</button></div>`:""}
   ${isBooth(e)&&tab==="info"?`<section style="display:flex;flex-direction:column;gap:10px"><h2>Feasibility บูธ</h2>${feasPanel(e,calcFeas(e))}
     <p class="muted" style="margin:0;font-size:.82rem">${inlineFc()?"คิดจากค่าใช้จ่ายที่กรอกไว้ในงานนี้ · กดแก้ไขงานเพื่อเปลี่ยนตัวเลข":"คิดจาก Fixed cost Booth ณ วันที่บันทึกงาน · กดแก้ไขงานเพื่อคำนวณใหม่ด้วยค่าปัจจุบัน"}</p></section>`:""}
   ${!isBooth(e)&&tab==="info"?viewPayments(e):""}
@@ -810,6 +811,49 @@ function plCards(e,rows,sum){
 /* PDF export: render an A4 sheet off-screen, rasterize, page it into a PDF */
 const PDF_VARS={jaedang:"--brand:#c8102e;--brand-ink:#ffffff;--brand-soft:#fbe7ea;--brand-2:#c8102e;",tsc:"--brand:#141414;--brand-ink:#d4af5a;--brand-soft:#f5efe0;--brand-2:#b08a35;"};
 const PDF_BASE="--bg:#ffffff;--surface:#ffffff;--ink:#1b1a19;--muted:#5f5a54;--line:#e4e0da;--soft:#f3f1ee;--good:#1f7a4d;--good-soft:#e3f3ea;--warn:#a15c00;--warn-soft:#fff1dc;--bad:#b42318;--bad-soft:#fde8e6;color-scheme:light;";
+function plSheet(e){
+  const ds=sortedDates(e),booth=isBooth(e),keys=booth?ds:["event"];
+  const rows=keys.map(d=>{const pl=S.pl[d];return {d,pl,c:pl?calcPL(e,effPL(e,d,pl)):null}});
+  const done=rows.filter(r=>r.c),sum=done.reduce((a,r)=>{for(const k of["gross","net","cogs","gp","other","np"])a[k]+=r.c[k];return a},{gross:0,net:0,cogs:0,gp:0,other:0,np:0});
+  const fz=booth?calcFeas(e):null;
+  const budgetItems=!fz?[]:fz.lines?fz.items.map(x=>[x.l,x.v]):[["ค่าแรง",fz.labor],["OT",fz.ot],["เบี้ยเลี้ยง",fz.allow],["ค่าที่พัก",fz.hotel],["ค่าเช่าบูธ",fz.rent],["ค่ารถขนส่ง",fz.transport],["ค่าอื่น ๆ (น้ำแข็ง ฯลฯ)",fz.other]];
+  const act={};done.forEach(r=>(effPL(e,r.d,r.pl).otherCosts||[]).forEach(o=>{if(n(o.amount))act[o.label]=(act[o.label]||0)+n(o.amount)}));
+  const labels=[...budgetItems.map(x=>x[0]),...Object.keys(act).filter(l=>!budgetItems.some(x=>x[0]===l))];
+  const menu={};done.forEach(r=>(effPL(e,r.d,r.pl).sales||[]).forEach(x=>{const k=x.menuId||x.name;const m=menu[k]||(menu[k]={name:x.name,price:n(x.price),qty:0,amt:0,cogs:0});
+    const uc=x.unitCogs!==undefined&&x.unitCogs!==null&&x.unitCogs!==""?n(x.unitCogs):menuCost(menuFor(x));m.qty+=n(x.qty);m.amt+=n(x.qty)*n(x.price);m.cogs+=uc*n(x.qty)}));
+  const mlist=Object.values(menu).sort((a,b)=>b.amt-a.amt);
+  const th=(t,r)=>`<th style="background:var(--brand);color:var(--brand-ink);padding:7px 8px;text-align:${r?"right":"left"};font-weight:600;white-space:nowrap">${t}</th>`;
+  const td=(v,r,st="")=>`<td style="padding:6px 8px;border-top:1px solid var(--line);${r?"text-align:right;font-family:var(--f-num);white-space:nowrap;":""}${st}">${v}</td>`;
+  const B=!!fz,bNet=fz?fz.net:0,bFood=fz?fz.food:0,bTot=fz?(fz.lines?fz.food+fz.fixed:fz.food+fz.fixed):0;
+  const line=(l,b,a,st="")=>`<tr>${td(l,0,st)}${B?td(b===null?"":fmt(b,2),1,st)+td(b===null?"":pct(b,bNet),1,st):""}${td(a===null?"":fmt(a,2),1,st)}${td(a===null?"":pct(a,sum.net),1,st)}</tr>`;
+  const strong="font-weight:700;background:var(--soft);";
+  const now=new Date();
+  return `<div style="background:var(--brand);color:var(--brand-ink);padding:18px 28px;display:flex;justify-content:space-between;align-items:flex-end">
+    <div><div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;opacity:.85">Booth &amp; Catering · ${esc(BRANDS[S.brand].name)}</div><div style="font-family:var(--f-display);font-size:22px;font-weight:700">สรุปกำไรขาดทุน</div></div>
+    <div style="font-size:11px;opacity:.85">พิมพ์ ${now.getDate()} ${TH_M[now.getMonth()]} ${now.getFullYear()+543-2500}</div></div>
+  <div style="padding:20px 28px;display:flex;flex-direction:column;gap:16px">
+    <div><div style="font-family:var(--f-display);font-size:20px;font-weight:700">${esc(e.customer)}</div>
+      <div style="color:var(--muted);font-size:12px">${esc(e.format)} · ${esc(e.venue)} · ${datesText(ds)}${ds.length>1?` (${ds.length} วัน)`:""} · กรอกยอดแล้ว ${done.length}/${rows.length} ${booth?"วัน":""}</div></div>
+    <div style="display:flex;gap:10px">${[["ยอดขาย (inc. VAT)",sum.gross,B?`Target ฿${fmt(fz.gross)} · ${pct(sum.gross,fz.gross)}`:""],["Total Cost",sum.cogs+sum.other,""],["กำไร/ขาดทุนสุทธิ",sum.np,`${pct(sum.np,sum.net)} ของยอดขายก่อน VAT`]].map(([l,v,sub],i)=>`<div style="flex:1;border:1px solid var(--line);border-radius:10px;padding:10px 12px">
+      <div style="font-size:11px;color:var(--muted)">${l}</div><div style="font-family:var(--f-num);font-size:18px;font-weight:600;${i===2?`color:${v<0?"var(--bad)":"var(--good)"}`:""}">฿${fmt(v)}</div><div style="font-size:11px;color:var(--muted)">${sub}</div></div>`).join("")}</div>
+    <table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>${th("รายการ")}${B?th("Budget",1)+th("%",1):""}${th("Actual",1)}${th("%",1)}</tr></thead><tbody>
+      ${line("Sales (inc. VAT)",B?fz.gross:null,sum.gross)}
+      ${line("ยอดขายก่อน VAT",B?bNet:null,sum.net)}
+      ${line("Food cost",B?bFood:null,sum.cogs)}
+      ${labels.map(l=>{const b=budgetItems.find(x=>x[0]===l);return line(esc(l),B?(b?b[1]:0):null,act[l]||0)}).join("")}
+      ${line("Total Cost",B?bTot:null,sum.cogs+sum.other,strong)}
+      ${line("Profit &amp; Loss",B?fz.np:null,sum.np,strong)}
+    </tbody></table>
+    ${booth&&rows.length>1?`<div><div class="sectionlabel" style="margin-bottom:6px">รายวัน</div><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>${th("วันที่")}${th("ยอดขาย (inc. VAT)",1)}${th("Food cost",1)}${th("ค่าใช้จ่ายอื่น",1)}${th("กำไร/ขาดทุน",1)}${th("%",1)}</tr></thead><tbody>
+      ${rows.map(r=>`<tr>${td(dLabel(r.d))}${r.c?td(fmt(r.c.gross),1)+td(fmt(r.c.cogs),1)+td(fmt(r.c.other),1)+td(`<span style="color:${r.c.np<0?"var(--bad)":"var(--good)"}">${fmt(r.c.np)}</span>`,1)+td(pct(r.c.np,r.c.net),1):`<td colspan="5" style="padding:6px 8px;border-top:1px solid var(--line);color:var(--muted)">ยังไม่กรอก</td>`}</tr>`).join("")}
+    </tbody></table></div>`:""}
+    ${mlist.length?`<div><div class="sectionlabel" style="margin-bottom:6px">ยอดขายตามเมนู</div><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>${th("เมนู")}${th("ราคา",1)}${th("จำนวน",1)}${th("ยอดขาย",1)}${th("COGS",1)}${th("Mix %",1)}</tr></thead><tbody>
+      ${mlist.map(m=>`<tr>${td(esc(m.name))}${td(fmt(m.price),1)}${td(fmt(m.qty),1)}${td(fmt(m.amt),1)}${td(fmt(m.cogs,2),1)}${td(pct(m.amt,sum.gross-(booth?0:0)),1)}</tr>`).join("")}
+      <tr>${td("รวม",0,strong)}${td("",1,strong)}${td(fmt(mlist.reduce((a,m)=>a+m.qty,0)),1,strong)}${td(fmt(mlist.reduce((a,m)=>a+m.amt,0)),1,strong)}${td(fmt(mlist.reduce((a,m)=>a+m.cogs,0),2),1,strong)}${td("100%",1,strong)}</tr>
+    </tbody></table></div>`:""}
+    <div style="font-size:11px;color:var(--muted)">% คิดจากยอดขายก่อน VAT${e.vatIncluded===false?" (งานนี้ไม่ถอด VAT)":""} · Food cost จริงคิดจาก COGS ต่อเมนู${booth?" · Budget = ทั้งงาน":""}</div>
+  </div>`;
+}
 function pdfSheet(e){
   const ds=sortedDates(e),[,lab]=eventStatus(e),booth=isBooth(e),pays=S.payments||[],paid=pays.reduce((a,p)=>a+n(p.amount),0),total=eventTotal(e);
   const row=(k,v)=>v?`<tr><td style="color:var(--muted);width:32%;border-top:1px solid var(--line);padding:6px 8px">${k}</td><td style="border-top:1px solid var(--line);padding:6px 8px">${v}</td></tr>`:"";
@@ -1326,6 +1370,7 @@ function bind(){
     on("[data-updelno]","click",()=>{S.upDel=null;rerender()});
     on("[data-updelyes]","click",async ev=>{const id=ev.currentTarget.dataset.updelyes;if(await write(()=>S.db.doc(base+"/events/"+e.id+"/updates/"+id).delete(),"ลบอัปเดตแล้ว")){S.upDel=null;rerender()}});
     if($("#pdfEv"))$("#pdfEv").onclick=ev=>exportPDF(e,ev.currentTarget);
+    if($("#pdfPL"))$("#pdfPL").onclick=ev=>htmlToPdf(plSheet(e),"PL_"+(safeName(e.customer)||"event")+"_"+(sortedDates(e)[0]||"")+".pdf",ev.currentTarget,"Export PDF",false);
     if($("#editEv"))$("#editEv").onclick=()=>go("new",{event:e});
     if($("#delEv"))$("#delEv").onclick=()=>{S.confirmDel=e.id;render()};
     if($("#delNo"))$("#delNo").onclick=()=>{S.confirmDel=null;render()};
