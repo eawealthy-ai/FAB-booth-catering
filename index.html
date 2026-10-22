@@ -983,7 +983,7 @@ function dayPL(e,d){
   const pl=S.draft,booth=isBooth(e),eff=effPL(e,d,pl),c=calcPL(e,eff),dis=canEdit?"":"disabled";
   const what=booth?"ยอดขายและค่าใช้จ่าย":"ค่าใช้จ่าย";
   const notice=!open?`<div class="notice info">กรอก${what}ได้ตั้งแต่วันงาน (${whole?dLabel(ds0):dLabel(d)}) ตัวเลขด้านล่างเป็นค่าตั้งต้น</div>`
-    :!S.canSales?`<div class="notice info">ดูอย่างเดียว เฉพาะทีมกรอกยอดขายที่บันทึกได้</div>`
+    :!S.canSales?`<div class="notice info">ดูอย่างเดียว เฉพาะOps.Teamที่บันทึกได้</div>`
     :!pl._saved?`<div class="notice warn">ยังไม่ได้บันทึกวันนี้ กรอก${what}จริงแล้วกดบันทึก</div>`:"";
   const salesBlock=booth?null:`<div><div class="sectionlabel" style="margin-bottom:6px">ยอดขายตามใบคอนเฟิร์ม · ขายขาด (ไม่ต้องกรอก)</div>
     <div class="tbl-wrap"><table><thead><tr><th>เมนู</th><th class="r">ราคา</th><th class="r">จำนวน</th><th class="r">ยอดขาย</th><th class="r">ต้นทุน/หน่วย</th></tr></thead><tbody>
@@ -1089,7 +1089,7 @@ function readMenu(){
 }
 
 /* users & access (owner only) */
-const ROLE_LABEL={sysadmin:"Admin (เห็นเมนู&BOM / ผู้ใช้&สิทธิ์)",register:"ทีมลงทะเบียนงาน",sales:"ทีมกรอกยอดขาย",admin:"ทั้งสองทีม",viewer:"ดูอย่างเดียว"};
+const ROLE_LABEL={sysadmin:"Admin (เห็นเมนู&BOM / ผู้ใช้&สิทธิ์)",register:"ทีมลงทะเบียนงาน",sales:"Ops.Team",admin:"ทั้งสองทีม",viewer:"ดูอย่างเดียว"};
 function viewUsers(){
   const ids=Object.keys(S.members);
   return `<div><h1>ผู้ใช้ &amp; สิทธิ์</h1><p class="muted" style="margin:2px 0 0">ผู้ใช้เห็นเฉพาะแบรนด์ที่ได้รับสิทธิ์ ตอนเข้าระบบจะเข้าแบรนด์ของตัวเองทันที</p></div>
@@ -1106,7 +1106,7 @@ function viewUsers(){
     <td><select id="ur-${esc(id)}" data-ur="${esc(id)}">${Object.entries(ROLE_LABEL).map(([k,l])=>`<option value="${k}" ${m.role===k?"selected":""}>${l}</option>`).join("")}</select></td>
     <td>${S.confirmDel==="u:"+id?`<button class="btn small" data-urmyes="${esc(id)}" type="button">ยืนยันลบ</button>`:`<button class="x" data-urm="${esc(id)}" type="button" aria-label="ลบผู้ใช้">×</button>`}</td></tr>`}).join("")}
   </tbody></table></div>`:`<div class="empty">ยังไม่มีผู้ใช้ เพิ่มจากช่องค้นหาด้านบน</div>`}
-  <div class="notice info"><b>Admin</b>: ทำได้ทุกอย่าง และเห็นหมวด เมนู &amp; BOM กับ ผู้ใช้ &amp; สิทธิ์ · <b>ทีมลงทะเบียนงาน</b>: ลงทะเบียน/แก้ไขงาน โพสต์อัปเดต แนบสลิป · <b>ทีมกรอกยอดขาย</b>: กรอกยอดขายและค่าใช้จ่ายใน P&amp;L · <b>ดูอย่างเดียว</b>: ดูข้อมูลได้อย่างเดียว · ผู้ใช้ใหม่ต้องกด “สมัครใช้งาน” ในหน้าเข้าสู่ระบบก่อน แล้วจึงค้นหาชื่อเพื่อกำหนดสิทธิ์ที่นี่ได้</div>`;
+  <div class="notice info"><b>Admin</b>: ทำได้ทุกอย่าง และเห็นหมวด เมนู &amp; BOM กับ ผู้ใช้ &amp; สิทธิ์ · <b>ทีมลงทะเบียนงาน</b>: ลงทะเบียน/แก้ไขงาน โพสต์อัปเดต แนบสลิป · <b>Ops.Team</b>: กรอกยอดขายและค่าใช้จ่ายใน P&amp;L · <b>ดูอย่างเดียว</b>: ดูข้อมูลได้อย่างเดียว · ผู้ใช้ใหม่ต้องกด “สมัครใช้งาน” ในหน้าเข้าสู่ระบบก่อน แล้วจึงค้นหาชื่อเพื่อกำหนดสิทธิ์ที่นี่ได้</div>`;
 }
 async function saveMembers(next,msg){
   if(await write(()=>S.db.doc("access/members").set({members:next,updatedAt:new Date().toISOString()}),msg)){S.members=next;S.confirmDel=null;render()}
