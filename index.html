@@ -307,7 +307,7 @@ function rangeLabel([a,b]){
   if(ya===yb)return `${+da} ${TH_M[+ma-1]}–${+db} ${TH_M[+mb-1]} ${yy(ya)}`;
   return `${dLabel(a)}–${dLabel(b)}`;
 }
-const timeText=e=>e.serveTo?`${esc(e.serveFrom)}–${esc(e.serveTo)} น.`:`${esc(e.serveFrom)} น.`;
+const timeText=e=>!e.serveFrom?"–":e.serveTo?`${esc(e.serveFrom)}–${esc(e.serveTo)} น.`:`${esc(e.serveFrom)} น.`;
 const datesText=list=>dateRanges(list).map(rangeLabel).join(", ");
 function toast(t){const el=$("#toast");el.textContent=t;el.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>el.hidden=true,2400)}
 function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){return null}}
@@ -428,7 +428,7 @@ function calcPL(e,pl){
   const vatIn=e.vatIncluded!==false;
   const net=vatIn?gross/(1+VAT):gross;
   let cogs=0,missing=[];
-  (pl.sales||[]).forEach(s=>{const m=menuFor(s);const c=menuCost(m);if(n(s.qty)>0&&!c)missing.push(s.name);cogs+=c*n(s.qty)});
+  (pl.sales||[]).forEach(s=>{const has=s.unitCogs!==undefined&&s.unitCogs!==null&&s.unitCogs!=="";const c=has?n(s.unitCogs):menuCost(menuFor(s));if(n(s.qty)>0&&!has&&!c)missing.push(s.name);cogs+=c*n(s.qty)});
   const other=(pl.otherCosts||[]).reduce((a,c)=>a+n(c.amount),0);
   const gp=net-cogs,np=gp-other;
   return {gross,vat:gross-net,net,cogs,gp,other,np,missing};
