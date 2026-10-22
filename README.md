@@ -45,6 +45,7 @@ The site is published at `https://eawealthy-ai.github.io/FAB-booth-catering/`.
 | `admin` | Registration team + sales team |
 | `register` | Register/edit events, post updates, attach slips |
 | `sales` | Enter daily sales and costs (P&L) |
+| `management` | Read only, all brands, plus the two-brand overview |
 | `viewer` | Read only |
 
 `profiles.brands` limits which brands a user sees (`jaedang`, `tsc`). New sign-ups start as `viewer` with no brands until an Admin assigns them in **ผู้ใช้ & สิทธิ์**.

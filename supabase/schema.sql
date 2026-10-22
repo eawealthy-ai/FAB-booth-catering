@@ -27,7 +27,7 @@ create table if not exists public.profiles (
   email      text,
   full_name  text,
   role       text not null default 'viewer'
-             check (role in ('owner','sysadmin','admin','register','sales','viewer')),
+             check (role in ('owner','sysadmin','admin','register','sales','management','viewer')),
   brands     text[] not null default '{}',
   created_at timestamptz not null default now()
 );
@@ -72,7 +72,7 @@ create or replace function public.has_brand(b text) returns boolean
 language sql stable security definer set search_path = public as $$
   select exists (
     select 1 from public.profiles p
-    where p.id = auth.uid() and (p.role = 'owner' or b = any (p.brands))
+    where p.id = auth.uid() and (p.role in ('owner','management') or b = any (p.brands))
   )
 $$;
 
