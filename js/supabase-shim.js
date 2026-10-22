@@ -10,7 +10,12 @@
     });
     return;
   }
-  const sb = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey);
+  // Session lives in sessionStorage: closing the tab/browser signs the user out (shared booth devices).
+  let sessStore; try { sessionStorage.setItem("bc.t", "1"); sessionStorage.removeItem("bc.t"); sessStore = window.sessionStorage; } catch (_) { sessStore = undefined; }
+  try { Object.keys(localStorage).filter(k => /^sb-.*-auth-token/.test(k)).forEach(k => localStorage.removeItem(k)); } catch (_) {}
+  const sb = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey, {
+    auth: { storage: sessStore, persistSession: !!sessStore, autoRefreshToken: true, detectSessionInUrl: true },
+  });
   window.SB = sb;
 
   /* ---------------- auth gate ---------------- */
