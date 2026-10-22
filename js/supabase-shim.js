@@ -18,15 +18,20 @@
   let resolveAuth; const authReady = new Promise(r => (resolveAuth = r));
 
   const LOGIN_CSS = `
-  .bc-login{position:fixed;inset:0;z-index:50;display:grid;place-items:center;background:var(--bg,#f6f5f3);
-    padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 16px max(16px,env(safe-area-inset-left,0px))}
-  .bc-login form{width:100%;max-width:380px;display:flex;flex-direction:column;gap:12px;background:var(--surface,#fff);
-    border:1px solid var(--line,#e4e0da);border-radius:14px;padding:24px}
-  .bc-login h1{margin:0;font-size:1.4rem}
-  .bc-login .sub{margin:0;color:var(--muted,#6c6862);font-size:.9rem}
+  .bc-login{position:fixed;inset:0;z-index:50;display:grid;place-items:center;overflow:auto;
+    background:var(--wash),var(--dots) 0 0/28px 28px,var(--bg,#f6f7fb);
+    padding:max(24px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px))}
+  .bc-login form{width:100%;max-width:400px;display:flex;flex-direction:column;gap:14px;background:var(--surface,#fff);
+    border:1px solid var(--line,#e6e9f1);border-radius:28px;padding:36px 28px 28px;box-shadow:var(--shadow);text-align:left}
+  .bc-login .mark{font-family:Georgia,"Times New Roman",serif;font-size:3.6rem;line-height:1;font-weight:700;letter-spacing:-.04em;text-align:center;
+    background:linear-gradient(120deg,#4a63d8 0%,#a35a9a 45%,#ee8838 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .bc-login h1{margin:0;font-size:1.45rem;text-align:center}
+  .bc-login .sub{margin:-6px 0 6px;color:var(--muted,#6b7285);font-size:.95rem;text-align:center}
   .bc-login .err{margin:0;color:var(--bad,#b42318);font-size:.88rem}
   .bc-login .ok{margin:0;color:var(--good,#1f7a4d);font-size:.88rem}
-  .bc-login .link{background:none;border:0;color:var(--ink,#1b1a19);text-decoration:underline;padding:0;font:inherit;cursor:pointer}`;
+  .bc-login .btn{width:100%;padding:13px 18px;font-size:1rem}
+  .bc-login .link{background:none;border:0;color:var(--muted,#6b7285);text-decoration:underline;padding:0;font:inherit;cursor:pointer}
+  .bc-login .foot{text-align:center;color:var(--muted,#6b7285);font-size:.8rem;margin-top:6px}`;
 
   function showLogin(mode, msg, ok) {
     let el = document.getElementById("bcLogin");
@@ -36,8 +41,9 @@
     }
     const signup = mode === "signup", reset = mode === "reset";
     el.innerHTML = `<form id="bcLoginForm" novalidate>
-      <div><div class="sectionlabel">Booth &amp; Catering</div><h1>${signup ? "สมัครใช้งาน" : reset ? "ลืมรหัสผ่าน" : "เข้าสู่ระบบ"}</h1></div>
-      <p class="sub">${signup ? "สมัครแล้วรอผู้ดูแลกำหนดแบรนด์และสิทธิ์ให้" : reset ? "ใส่อีเมล ระบบจะส่งลิงก์ตั้งรหัสใหม่ให้" : "ใช้อีเมลและรหัสผ่านที่ได้รับ"}</p>
+      <div class="mark" aria-hidden="true">Fab</div>
+      <h1>FAB Booth &amp; Catering</h1>
+      <p class="sub">${signup ? "สมัครใช้งาน · รอผู้ดูแลกำหนดแบรนด์และสิทธิ์ให้" : reset ? "ลืมรหัสผ่าน · ระบบจะส่งลิงก์ตั้งรหัสใหม่ทางอีเมล" : "ระบบงานบูธและแคเทอริ่ง"}</p>
       ${signup ? '<label>ชื่อ-นามสกุล<input id="bcName" autocomplete="name" required></label>' : ""}
       <label>อีเมล<input id="bcEmail" type="email" autocomplete="email" required></label>
       ${reset ? "" : `<label>รหัสผ่าน<input id="bcPass" type="password" autocomplete="${signup ? "new-password" : "current-password"}" minlength="6" required></label>`}
@@ -46,7 +52,7 @@
       <div class="row" style="justify-content:space-between;gap:8px;font-size:.88rem">
         ${signup || reset ? '<button class="link" type="button" data-m="login">กลับไปหน้าเข้าสู่ระบบ</button>'
           : '<button class="link" type="button" data-m="signup">สมัครใช้งาน</button><button class="link" type="button" data-m="reset">ลืมรหัสผ่าน</button>'}
-      </div></form>`;
+      </div><div class="foot">© 2026 Operation FAB</div></form>`;
     el.hidden = false;
     el.querySelectorAll("[data-m]").forEach(b => (b.onclick = () => showLogin(b.dataset.m)));
     el.querySelector("form").onsubmit = async ev => {
