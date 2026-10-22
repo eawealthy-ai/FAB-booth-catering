@@ -847,6 +847,7 @@ function viewDash(){
   return `<div class="row" style="justify-content:space-between">
     <div><div class="sectionlabel">Dashboard รายเดือน</div><h1>${ymLabel(ym)}</h1></div>
     <div class="row">
+      <span class="sectionlabel" style="margin-right:2px">เลือกเดือน</span>
       <button class="btn sec small" data-dm="-1" type="button" aria-label="เดือนก่อน">‹</button>
       <input id="dashMonth" type="month" value="${ym}" style="width:auto">
       <button class="btn sec small" data-dm="1" type="button" aria-label="เดือนถัดไป">›</button>
