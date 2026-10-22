@@ -264,6 +264,7 @@ tr.total td{background:var(--brand-soft)}
       <button class="ghost" id="logoutBtn" type="button">ออกจากระบบ</button>
     </div>
     <nav class="tabs" aria-label="เมนูหลัก">
+      <button class="tab" data-view="overall" id="tabOverall" type="button" hidden>ภาพรวม 2 แบรนด์</button>
       <button class="tab" data-view="dash" type="button">Dashboard</button>
       <button class="tab" data-view="events" type="button">งานทั้งหมด</button>
       <button class="tab" data-view="new" id="tabNew" type="button">+ ลงทะเบียนงาน</button>
@@ -535,6 +536,7 @@ document.addEventListener("click",ev=>{
 });
 $("#switchBrand").onclick=()=>{leaveBrand();ls("bc.brand",null);showGate()};
 function go(view,opts={}){
+  if(view==="overall")S.allEvents=null;
   if(view==="notif"||S.view==="notif")S.notifPrevSeen=undefined;
   S.view=view;S.confirmDel=null;S.draft=null;
   if(view==="new"){S.editEvent=opts.event||null;S.slipFile=null}
@@ -552,15 +554,18 @@ function render(){
   $("#roleChip").textContent=S.isOwner?"เจ้าของระบบ":pend?"ดูอย่างเดียว (รอสิทธิ์ Editor)":(ROLE_LABEL[role]||"ดูอย่างเดียว");
   $("#tabNew").hidden=!S.isAdmin;
   $("#tabUsers").hidden=!S.isSys;
+  $("#tabOverall").hidden=!S.isOwner;
   {const u=unreadCount(),b=$("#notifBadge");b.hidden=!u;b.textContent=u>99?"99+":String(u);b.setAttribute("aria-label",u+" รายการยังไม่อ่าน");
    const base="Booth & Catering Desk";document.title=u?`(${u>99?"99+":u}) ${base}`:base}
   $("#tabMenus").hidden=!S.isSys;
   $("#switchBrand").hidden=allowedBrands().length<2;
   if((S.view==="users"||S.view==="menus")&&!S.isSys)S.view="events";
+  if(S.view==="overall"&&!S.isOwner)S.view="events";
   document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-current",(b.dataset.view===S.view||(S.view==="event"&&b.dataset.view==="events"))?"page":"false"));
   const m=$("#main");
   if(S.view==="events")m.innerHTML=viewEvents();
   else if(S.view==="dash")m.innerHTML=viewDash();
+  else if(S.view==="overall")m.innerHTML=viewOverall();
   else if(S.view==="notif")m.innerHTML=viewNotif();
   else if(S.view==="new")m.innerHTML=viewForm();
   else if(S.view==="event")m.innerHTML=viewEvent();
@@ -936,12 +941,61 @@ function viewNotif(){
         <span class="muted" style="font-size:.8rem">โดย <span data-uname="${esc(a.by)}">…</span> · ${who.length?`อ่านแล้ว ${who.length} คน: ${who.map(u=>`<span data-uname="${esc(u)}">…</span>`).join(", ")}`:"ยังไม่มีใครอ่าน"}</span>
       </span></button>`}).join("")}</div>`;
 }
+/* owner: overall performance across both brands */
+const BRAND_DOT={jaedang:"#c8102e",tsc:"#141414"};
+async function loadAllEvents(){
+  if(!S.db)return;S.allLoading=true;render();
+  const out={};
+  for(const b of Object.keys(BRANDS)){try{const q=await S.db.collection("b/"+b+"/events").get();out[b]=q.docs.map(d=>({id:d.id,...d.data()}))}catch(_){out[b]=[]}}
+  S.allEvents=out;S.allLoading=false;S.allAt=new Date();render();
+}
+function viewOverall(){
+  const y=S.ovYear||(S.ovYear=+today().slice(0,4));
+  if(!S.allEvents){if(!S.allLoading)loadAllEvents();return `<div class="empty">กำลังโหลดข้อมูลทั้ง 2 แบรนด์…</div>`}
+  const brands=Object.keys(BRANDS),f=y+"-01-01",t=y+"-12-31";
+  const per={};brands.forEach(b=>{const rows=rangeRows(f,t,S.allEvents[b]||[]);per[b]={rows,t:monthTotals(rows)}});
+  const all=brands.reduce((a,b)=>{const x=per[b].t;for(const k of["tg","g","net","cogs","np","booth","boothDays","cat","done"])a[k]+=x[k];return a},{tg:0,g:0,net:0,cogs:0,np:0,booth:0,boothDays:0,cat:0,done:0});
+  const months=Array.from({length:12},(_,i)=>y+"-"+String(i+1).padStart(2,"0"));
+  const mdata=months.map(ym=>{const r={ym};brands.forEach(b=>{const tt=monthTotals(rangeRows(ym+"-01",monthEnd(ym),S.allEvents[b]||[]));r[b]=tt});r.g=brands.reduce((a,b)=>a+r[b].g,0);r.np=brands.reduce((a,b)=>a+r[b].np,0);r.net=brands.reduce((a,b)=>a+r[b].net,0);r.tg=brands.reduce((a,b)=>a+r[b].tg,0);return r});
+  const max=Math.max(1,...mdata.map(r=>Math.max(r.g,r.tg)));
+  const dot=b=>`<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${BRAND_DOT[b]};vertical-align:middle;margin-right:6px"></span>`;
+  const card=(l,v,sub,cls="")=>`<div class="panel" style="padding:14px 16px;display:flex;flex-direction:column;gap:2px;min-width:0"><div class="sectionlabel">${l}</div><div class="num ${cls}" style="font-size:1.45rem;font-weight:600">${v}</div><div class="muted" style="font-size:.82rem">${sub}</div></div>`;
+  return `<div class="row" style="justify-content:space-between">
+    <div><div class="sectionlabel">Overall performance · เจ้าของระบบ</div><h1>ภาพรวม 2 แบรนด์ ปี ${y+543}</h1></div>
+    <div class="row"><button class="btn sec small" data-ovy="-1" type="button" aria-label="ปีก่อน">‹</button><b>${y+543}</b><button class="btn sec small" data-ovy="1" type="button" aria-label="ปีถัดไป">›</button>
+      <button class="btn sec small" id="ovRefresh" type="button">รีเฟรช</button></div></div>
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(190px,1fr))">
+    ${card("จำนวนงาน",fmt(all.booth+all.cat)+" งาน",`บูธ ${fmt(all.booth)} งาน (${fmt(all.boothDays)} วัน) · Catering ${fmt(all.cat)} งาน`)}
+    ${card("ยอดขาย (inc. VAT)","฿"+fmt(all.g),all.tg?`Target ฿${fmt(all.tg)} · ${pct(all.g,all.tg)}`:"")}
+    ${card("กำไร/ขาดทุนสุทธิ","฿"+fmt(all.np),all.net?`${pct(all.np,all.net)} ของยอดขายก่อน VAT`:"",all.np<0?"neg":all.np>0?"pos":"")}
+    ${card("กรอกยอดแล้ว",`${all.done}/${brands.reduce((a,b)=>a+per[b].rows.length,0)} งาน`,all.net?`Food cost ${pct(all.cogs,all.net)}`:"")}
+  </div>
+  <section style="display:flex;flex-direction:column;gap:10px"><h2>แยกตามแบรนด์</h2>
+  <div class="tbl-wrap"><table><thead><tr><th>แบรนด์</th><th class="r">บูธ</th><th class="r">Catering</th><th class="r">Target / มูลค่างาน</th><th class="r">ยอดขาย (inc. VAT)</th><th class="r">% Target</th><th class="r">กำไร/ขาดทุน</th><th class="r">%</th><th class="r">สัดส่วนยอดขาย</th></tr></thead><tbody>
+    ${brands.map(b=>{const x=per[b].t;return `<tr><td>${dot(b)}<b>${esc(BRANDS[b].name)}</b></td><td class="r num">${fmt(x.booth)}</td><td class="r num">${fmt(x.cat)}</td><td class="r num">${fmt(x.tg)}</td><td class="r num">${fmt(x.g)}</td><td class="r num">${pct(x.g,x.tg)}</td><td class="r num ${x.np<0?"neg":"pos"}">${fmt(x.np)}</td><td class="r num">${pct(x.np,x.net)}</td><td class="r num">${pct(x.g,all.g)}</td></tr>`}).join("")}
+    <tr class="total"><td>รวม</td><td class="r num">${fmt(all.booth)}</td><td class="r num">${fmt(all.cat)}</td><td class="r num">${fmt(all.tg)}</td><td class="r num">${fmt(all.g)}</td><td class="r num">${pct(all.g,all.tg)}</td><td class="r num ${all.np<0?"neg":"pos"}">${fmt(all.np)}</td><td class="r num">${pct(all.np,all.net)}</td><td class="r num">${all.g?"100%":"–"}</td></tr>
+  </tbody></table></div></section>
+  <section class="panel" style="display:flex;flex-direction:column;gap:8px"><div class="row" style="justify-content:space-between"><h2>ยอดขายรายเดือน</h2>
+    <div class="row muted" style="font-size:.8rem;gap:12px">${brands.map(b=>`<span>${dot(b)}${esc(BRANDS[b].name)}</span>`).join("")}<span><span style="display:inline-block;width:10px;height:10px;border:1.5px dashed var(--muted);border-radius:2px;vertical-align:middle;margin-right:6px"></span>Target</span></div></div>
+    ${mdata.map(r=>`<div style="display:grid;grid-template-columns:44px minmax(0,1fr) 96px;gap:10px;align-items:center;font-size:.86rem">
+      <div class="muted">${TH_M[+r.ym.slice(5)-1]}</div>
+      <div style="position:relative;height:18px;background:var(--soft);border-radius:4px;overflow:hidden">
+        <div style="position:absolute;inset:0 auto 0 0;width:${(r.tg/max*100).toFixed(2)}%;border:1.5px dashed var(--muted);border-radius:4px"></div>
+        <div style="position:absolute;inset:3px auto 3px 0;display:flex;width:${(r.g/max*100).toFixed(2)}%">${brands.map(b=>r.g?`<div style="flex:${r[b].g} 0 0;background:${BRAND_DOT[b]}"></div>`:"").join("")}</div></div>
+      <div class="num" style="text-align:right">${r.g?fmt(r.g):"–"}</div></div>`).join("")}
+  </section>
+  <div class="tbl-wrap"><table><thead><tr><th>เดือน</th>${brands.map(b=>`<th class="r">${esc(BRANDS[b].name)}</th>`).join("")}<th class="r">ยอดขายรวม</th><th class="r">Target</th><th class="r">กำไร/ขาดทุน</th><th class="r">%</th></tr></thead><tbody>
+    ${mdata.map(r=>`<tr><td>${TH_MF[+r.ym.slice(5)-1]}</td>${brands.map(b=>`<td class="r num">${r[b].g?fmt(r[b].g):"–"}</td>`).join("")}<td class="r num">${r.g?fmt(r.g):"–"}</td><td class="r num">${r.tg?fmt(r.tg):"–"}</td><td class="r num ${r.np<0?"neg":r.np>0?"pos":""}">${r.g?fmt(r.np):"–"}</td><td class="r num">${r.g?pct(r.np,r.net):"–"}</td></tr>`).join("")}
+    <tr class="total"><td>รวมทั้งปี</td>${brands.map(b=>`<td class="r num">${fmt(per[b].t.g)}</td>`).join("")}<td class="r num">${fmt(all.g)}</td><td class="r num">${fmt(all.tg)}</td><td class="r num ${all.np<0?"neg":"pos"}">${fmt(all.np)}</td><td class="r num">${pct(all.np,all.net)}</td></tr>
+  </tbody></table></div>
+  <p class="muted" style="margin:0;font-size:.8rem">ยอดขาย/กำไร มาจาก P&amp;L ที่บันทึกแล้ว · % คิดจากยอดขายก่อน VAT · บูธนับตามวันที่ออกบูธ · Catering นับตามวันแรก · ไม่รวมงานที่ยกเลิก${S.allAt?` · ข้อมูล ณ ${S.allAt.toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit"})}`:""}</p>`;
+}
 /* monthly dashboard */
 const TH_MF=["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
 const ymLabel=ym=>{const[y,m]=ym.split("-");return TH_MF[+m-1]+" "+(+y+543)};
 const ymShift=(ym,d)=>{let[y,m]=ym.split("-").map(Number);m+=d;while(m<1){m+=12;y--}while(m>12){m-=12;y++}return y+"-"+String(m).padStart(2,"0")};
-function rangeRows(f,t){
-  return S.events.filter(e=>e.status!=="cancelled").map(e=>{
+function rangeRows(f,t,evs){
+  return (evs||S.events).filter(e=>e.status!=="cancelled").map(e=>{
     const ds=sortedDates(e),booth=isBooth(e),inR=ds.filter(d=>d>=f&&d<=t);
     if(booth?!inR.length:!(ds[0]&&ds[0]>=f&&ds[0]<=t))return null;
     const tg=booth?n(e.feas?.salesPerDay)*inR.length:eventTotal(e);
@@ -1253,6 +1307,10 @@ function bind(){
     if(S.notifPrevSeen===undefined)S.notifPrevSeen=seenAt(S.uid);
     markSeen();
     on("[data-act]","click",ev=>{const a=(S.acts||[]).find(x=>x.id===ev.currentTarget.dataset.act);if(a&&a.eventId&&S.events.some(e=>e.id===a.eventId))go("event",{id:a.eventId,tab:a.type==="pl"?(isBooth(S.events.find(e=>e.id===a.eventId))?"sales":"pl"):"info"})});
+  }
+  if(S.view==="overall"){
+    on("[data-ovy]","click",ev=>{S.ovYear+= +ev.currentTarget.dataset.ovy;render()});
+    if($("#ovRefresh"))$("#ovRefresh").onclick=()=>loadAllEvents();
   }
   if(S.view==="dash"){
     on("[data-dm]","click",ev=>{S.dashMonth=ymShift(S.dashMonth,+ev.currentTarget.dataset.dm);S.rpFrom=S.rpTo=null;render()});
