@@ -1,0 +1,1265 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/supabase-shim.js"></script>
+<title>Booth &amp; Catering Desk</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: brand gate → top bar with brand + tabs → single working column (list / form / event sheet / menu book) */
+:root{
+  --bg:#f6f5f3; --surface:#ffffff; --ink:#1b1a19; --muted:#6c6862; --line:#e4e0da; --soft:#efece8;
+  --brand:#c8102e; --brand-ink:#ffffff; --brand-soft:#fbe7ea; --brand-2:#c8102e;
+  --good:#1f7a4d; --good-soft:#e3f3ea; --warn:#a15c00; --warn-soft:#fff1dc; --bad:#b42318; --bad-soft:#fde8e6;
+  --f-display:"Bai Jamjuree","IBM Plex Sans Thai",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans Thai",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#141312; --surface:#1d1c1a; --ink:#f1efec; --muted:#a39e97; --line:#33302c; --soft:#262421;
+  --brand:#ef4058; --brand-ink:#ffffff; --brand-soft:#3a1a1f; --brand-2:#ef4058;
+  --good:#5fd39a; --good-soft:#163024; --warn:#f0b35a; --warn-soft:#352812; --bad:#ff8a7e; --bad-soft:#3a1c19; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141312; --surface:#1d1c1a; --ink:#f1efec; --muted:#a39e97; --line:#33302c; --soft:#262421;
+  --brand:#ef4058; --brand-ink:#ffffff; --brand-soft:#3a1a1f; --brand-2:#ef4058;
+  --good:#5fd39a; --good-soft:#163024; --warn:#f0b35a; --warn-soft:#352812; --bad:#ff8a7e; --bad-soft:#3a1c19; color-scheme:dark}
+/* Top Secret Café: black + gold */
+body[data-brand="tsc"]{--brand:#141414; --brand-ink:#d4af5a; --brand-soft:#f5efe0; --brand-2:#b08a35}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) body[data-brand="tsc"]{--brand:#d4af5a; --brand-ink:#141414; --brand-soft:#2c2616; --brand-2:#d4af5a}}
+:root[data-theme="dark"] body[data-brand="tsc"]{--brand:#d4af5a; --brand-ink:#141414; --brand-soft:#2c2616; --brand-2:#d4af5a}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 48px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.25}
+h1{font-size:1.6rem} h2{font-size:1.25rem} h3{font-size:1.02rem}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums;font-size:.92em}
+.muted{color:var(--muted)}
+.wrap{max-width:1040px;margin:0 auto}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--brand-2);outline-offset:2px}
+
+/* top bar */
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--brand)}
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--brand);color:var(--brand-ink);
+  margin-left:calc(-1*max(16px,env(safe-area-inset-left,0px)));margin-right:calc(-1*max(16px,env(safe-area-inset-right,0px)))}
+.bar-in{max-width:1040px;margin:0 auto;padding:10px max(16px,env(safe-area-inset-right,0px)) 0 max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:8px}
+.bar-top{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.brandname{font-family:var(--f-display);font-weight:700;font-size:1.15rem;letter-spacing:.01em}
+.unit{font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;opacity:.8}
+.spacer{flex:1}
+.chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:2px 10px;font-size:.78rem;font-weight:600;white-space:nowrap}
+.bar .chip{border:1px solid currentColor;opacity:.9}
+.ghost{background:transparent;border:1px solid currentColor;color:inherit;border-radius:8px;padding:4px 10px;font-size:.82rem}
+.tabs{display:flex;gap:2px;overflow-x:auto}
+.tab{background:transparent;border:0;color:inherit;opacity:.75;padding:8px 12px 10px;border-bottom:3px solid transparent;font-weight:600;white-space:nowrap}
+.tab[aria-current="page"]{opacity:1;border-bottom-color:currentColor}
+
+/* gate */
+.gate{min-height:80vh;display:grid;place-items:center;padding-block:40px}
+.gate-in{max-width:640px;width:100%;display:flex;flex-direction:column;gap:20px}
+.brandpick{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.bp{border:0;border-radius:14px;padding:24px 20px;text-align:left;display:flex;flex-direction:column;gap:6px;min-height:140px;justify-content:flex-end}
+.bp b{font-family:var(--f-display);font-size:1.35rem}
+.bp-jd{background:#c8102e;color:#fff}
+.bp-tsc{background:#141414;color:#d4af5a;box-shadow:inset 0 0 0 2px #b08a35}
+
+/* generic */
+main{padding-top:20px;display:flex;flex-direction:column;gap:18px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px}
+.btn{background:var(--brand);color:var(--brand-ink);border:0;border-radius:9px;padding:9px 16px;font-weight:600}
+.btn.sec{background:var(--soft);color:var(--ink);border:1px solid var(--line)}
+.btn.small{padding:5px 10px;font-size:.85rem}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.x{background:transparent;border:0;color:var(--muted);font-size:1.1rem;padding:2px 8px;border-radius:6px}
+.x:hover{background:var(--soft);color:var(--bad)}
+label{display:flex;flex-direction:column;gap:4px;font-size:.84rem;color:var(--muted);font-weight:500}
+input,select,textarea{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;color:var(--ink);min-width:0;width:100%}
+input[type=number]{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+textarea{min-height:64px;resize:vertical}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.sectionlabel{font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);font-weight:600}
+.notice{border-radius:10px;padding:10px 14px;font-size:.88rem}
+.notice.warn{background:var(--warn-soft);color:var(--warn)}
+.notice.info{background:var(--brand-soft);color:var(--ink)}
+.empty{padding:36px 18px;text-align:center;color:var(--muted);border:1.5px dashed var(--line);border-radius:12px}
+
+/* event list */
+.evlist{display:flex;flex-direction:column;gap:10px}
+.ev{display:grid;grid-template-columns:92px 1fr auto;gap:14px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;text-align:left;width:100%}
+.ev:hover{border-color:var(--brand-2)}
+.datebox{display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:9px;background:var(--brand-soft);padding:8px 4px;min-height:64px}
+.datebox .d{font-family:var(--f-display);font-weight:700;font-size:1.25rem;line-height:1}
+.datebox .m{font-size:.75rem;color:var(--muted)}
+.ev .meta{min-width:0}
+.ev .meta .t{font-weight:600}
+.ev .meta .s{font-size:.85rem;color:var(--muted);overflow-wrap:anywhere}
+.ev .amt{text-align:right}
+.pill{display:inline-block;border-radius:999px;padding:1px 9px;font-size:.74rem;font-weight:600}
+.pill.ok{background:var(--good-soft);color:var(--good)}
+.pill.cx{background:var(--bad-soft);color:var(--bad)}
+.pill.live{background:var(--warn-soft);color:var(--warn)}
+.pill.done{background:var(--soft);color:var(--muted)}
+.filters{display:flex;gap:6px;flex-wrap:wrap}
+.fbtn{background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px 12px;font-size:.85rem}
+.fbtn[aria-pressed="true"]{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+
+/* tables */
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th{background:var(--brand);color:var(--brand-ink);text-align:left;font-weight:600;padding:8px 10px;white-space:nowrap}
+td{padding:7px 10px;border-top:1px solid var(--line);vertical-align:middle}
+td.r,th.r{text-align:right}
+tr.total td{font-weight:700;background:var(--soft)}
+td input,td select{padding:5px 8px}
+.line-tbl td:first-child{min-width:160px}
+
+/* detail */
+.sheet-head{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:flex-start}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px 20px}
+.kv div{min-width:0}
+.kv dt{font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.kv dd{margin:2px 0 0;font-weight:500;overflow-wrap:anywhere}
+.daytabs{display:flex;gap:6px;flex-wrap:wrap}
+.daytab{background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:6px 12px;text-align:left;font-size:.85rem}
+.daytab[aria-pressed="true"]{border-color:var(--brand-2);box-shadow:inset 0 0 0 1px var(--brand-2)}
+.daytab small{display:block;color:var(--muted);font-size:.72rem}
+.pl{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:18px}
+@media (max-width:820px){.pl{grid-template-columns:1fr}}
+.stmt{display:flex;flex-direction:column}
+.stmt .l{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--line)}
+.stmt .l.sub{padding-left:14px;color:var(--muted);font-size:.9rem}
+.stmt .l.key{font-weight:700;border-bottom:2px solid var(--ink)}
+.stmt .l.final{font-weight:700;font-size:1.1rem;border-bottom:0;padding-top:10px}
+.pos{color:var(--good)} .neg{color:var(--bad)}
+.flag{color:var(--warn);font-size:.78rem}
+.pos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px}
+.pos-tile{position:relative;display:flex;flex-direction:column;justify-content:space-between;gap:6px;min-height:84px;text-align:left;
+  background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 10px 8px;font-size:.88rem;line-height:1.3}
+.pos-tile:hover:not(:disabled){border-color:var(--brand-2)}
+.pos-tile:active:not(:disabled){transform:scale(.97)}
+.pos-tile.on{background:var(--brand-soft);border-color:var(--brand-2)}
+.pos-tile .pr{font-family:var(--f-num);font-variant-numeric:tabular-nums;color:var(--muted);font-size:.85rem}
+.pos-tile .qb{position:absolute;top:-7px;right:-7px;min-width:24px;height:24px;border-radius:12px;background:var(--brand);color:var(--brand-ink);
+  font:600 .8rem var(--f-num);display:grid;place-items:center;padding:0 6px}
+.pos-tile:disabled{opacity:.6;cursor:default}
+.ticket{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.ticket .tr{display:grid;grid-template-columns:minmax(0,1fr) auto 84px;gap:8px;align-items:center;padding:7px 10px;border-top:1px solid var(--line)}
+.ticket .tr:first-child{border-top:0}
+.ticket .tr.tot{background:var(--soft);font-weight:700}
+.stepper{display:flex;align-items:center;gap:4px}
+.stepper button{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-weight:700}
+.stepper input{width:56px;text-align:center;padding:5px 4px}
+.evtabs-wrap{position:sticky;top:calc(env(safe-area-inset-top,0px) + var(--barh,0px));z-index:4;background:var(--bg);display:flex;flex-direction:column;gap:10px;padding-block:4px 0;border-bottom:1px solid var(--line)}
+.evtabs{display:flex;gap:4px;overflow-x:auto}
+.evtab{flex:1 0 auto;background:transparent;border:0;border-bottom:3px solid transparent;padding:10px 14px;font-weight:600;font-size:.95rem;color:var(--muted);white-space:nowrap}
+.evtab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--brand-2)}
+.evtab:hover{color:var(--ink)}
+.toast{position:fixed;bottom:calc(16px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:9px;font-size:.9rem;z-index:20}
+.confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--bad-soft);color:var(--bad);border-radius:9px;padding:8px 12px;font-size:.88rem}
+@media (max-width:520px){.ev{grid-template-columns:70px 1fr}.ev .amt{grid-column:2;text-align:left}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+
+<div id="gate" class="gate" hidden>
+  <div class="gate-in">
+    <div>
+      <div class="sectionlabel">Booth &amp; Catering</div>
+      <h1>เลือกแบรนด์เพื่อเข้าใช้งาน</h1>
+      <p class="muted">งานลงทะเบียน เมนู BOM และ P&amp;L แยกตามแบรนด์</p>
+    </div>
+    <div class="brandpick" id="brandPick"></div>
+    <p id="gateMsg" class="notice info" hidden></p>
+  </div>
+</div>
+
+<div id="app" hidden>
+  <header class="bar"><div class="bar-in">
+    <div class="bar-top">
+      <div><div class="unit">Booth &amp; Catering</div><div class="brandname" id="brandName"></div></div>
+      <span class="spacer"></span>
+      <span class="chip" id="roleChip"></span>
+      <button class="ghost" id="switchBrand" type="button">เปลี่ยนแบรนด์</button>
+      <button class="ghost" id="logoutBtn" type="button">ออกจากระบบ</button>
+    </div>
+    <nav class="tabs" aria-label="เมนูหลัก">
+      <button class="tab" data-view="dash" type="button">Dashboard</button>
+      <button class="tab" data-view="events" type="button">งานทั้งหมด</button>
+      <button class="tab" data-view="new" id="tabNew" type="button">+ ลงทะเบียนงาน</button>
+      <button class="tab" data-view="menus" id="tabMenus" type="button" hidden>เมนู &amp; BOM</button>
+      <button class="tab" data-view="notif" id="tabNotif" type="button">แจ้งเตือน<span id="notifBadge" class="chip" style="margin-left:6px;padding:0 7px;background:var(--brand-ink);color:var(--brand);border:0" hidden></span></button>
+      <button class="tab" data-view="users" id="tabUsers" type="button" hidden>ผู้ใช้ &amp; สิทธิ์</button>
+    </nav>
+  </div></header>
+  <main class="wrap" id="main"></main>
+</div>
+<div id="toast" class="toast" hidden></div>
+
+<script>
+(function(){
+const BRANDS={jaedang:{name:"เจ๊แดง"},tsc:{name:"Top Secret Café"}};
+const VAT=0.07;
+const DEFAULT_COSTS=["ค่าแรงพนักงาน","ค่าเดินทาง/ขนส่ง","บรรจุภัณฑ์","อุปกรณ์/แก๊ส"];
+const S={brand:null,view:"events",db:null,user:null,isAdmin:false,uid:null,
+  events:[],menus:[],evReady:false,mnReady:false,unsub:[],
+  eventId:null,day:null,pl:{},plUnsub:null,filter:"upcoming",editMenu:null,editEvent:null,draft:null,confirmDel:null};
+
+const $=s=>document.querySelector(s);
+const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const n=v=>{const x=parseFloat(v);return isFinite(x)?x:0};
+const fmt=(v,d=0)=>n(v).toLocaleString("th-TH",{minimumFractionDigits:d,maximumFractionDigits:d});
+const pct=(a,b)=>b?fmt(a/b*100,1)+"%":"–";
+const today=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
+const TH_M=["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+const dLabel=s=>{if(!s)return"";const[y,m,d]=s.split("-");return +d+" "+TH_M[+m-1]+" "+(+y+543-2500)};
+const sortedDates=e=>[...(e.dates||[])].filter(Boolean).sort();
+function dateRanges(list){
+  const ds=[...new Set(list.filter(Boolean))].sort(),out=[];
+  const next=s=>{const d=new Date(s+"T00:00:00Z");d.setUTCDate(d.getUTCDate()+1);return d.toISOString().slice(0,10)};
+  ds.forEach(d=>{const r=out[out.length-1];if(r&&next(r[1])===d)r[1]=d;else out.push([d,d])});
+  return out;
+}
+function rangeLabel([a,b]){
+  if(a===b)return dLabel(a);
+  const[ya,ma,da]=a.split("-"),[yb,mb,db]=b.split("-"),yy=y=>(+y+543-2500);
+  if(ya===yb&&ma===mb)return `${+da}–${+db} ${TH_M[+ma-1]} ${yy(ya)}`;
+  if(ya===yb)return `${+da} ${TH_M[+ma-1]}–${+db} ${TH_M[+mb-1]} ${yy(ya)}`;
+  return `${dLabel(a)}–${dLabel(b)}`;
+}
+const timeText=e=>e.serveTo?`${esc(e.serveFrom)}–${esc(e.serveTo)} น.`:`${esc(e.serveFrom)} น.`;
+const datesText=list=>dateRanges(list).map(rangeLabel).join(", ");
+function toast(t){const el=$("#toast");el.textContent=t;el.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>el.hidden=true,2400)}
+function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){return null}}
+
+/* ---------- money ---------- */
+function eventTotal(e){
+  const days=sortedDates(e).length||1;
+  if(e.format==="Booth")return n(e.feas?.salesPerDay)*days;
+  const pk=(e.packages||[]).reduce((a,p)=>a+n(p.price)*n(p.qty),0);
+  return pk+n(e.cateringFeePerDay)*days;
+}
+/* Booth fixed cost (from Fixed_Cost_Booth.xlsx) */
+const FC_DEFAULT={foodPct:0.355,wage:550,otHours:4,otRate:1.5,allowance:200,hotelRoom:1000,perRoom:2,transport:1500,other:500};
+const FC_ROWS=[["foodPct","ต้นทุนอาหาร (% ของยอดขาย)","%","โดยประมาณ"],["wage","ค่าแรง","บาท/คน/วัน","โดยเฉลี่ย"],
+  ["otHours","OT","ชม./คน/วัน","ตามที่ร้านกำหนด"],["otRate","อัตรา OT","เท่าของค่าแรงรายชั่วโมง","1.5 เท่าตามกฎหมายแรงงาน"],
+  ["allowance","เบี้ยเลี้ยง","บาท/คน/วัน","ตามที่ร้านกำหนด"],["hotelRoom","ค่าที่พัก","บาท/ห้อง/คืน","คิดทุกคืนเท่ากับจำนวนวันงาน"],
+  ["perRoom","พักห้องละ","คน","ตามที่ร้านกำหนด"],["transport","ค่ารถขนส่ง","บาท/งาน","โดยประมาณ"],["other","ค่าอื่น ๆ","บาท/งาน","ค่าน้ำแข็ง, ค่าขนส่งของระหว่างวัน"]];
+const fcNow=()=>({...FC_DEFAULT,...(S.fc||{})});
+function calcFeas(e,fcOverride){
+  const f={...FC_DEFAULT,...(fcOverride||e.feasFc||S.fc||{})},fe=e.feas||{},days=sortedDates(e).length||1,staff=n(fe.staff);
+  const vatIn=e.vatIncluded!==false,gross=n(fe.salesPerDay)*days,net=vatIn?gross/(1+VAT):gross;
+  const food=net*n(f.foodPct),otHr=n(f.wage)/8*n(f.otRate);
+  const labor=staff*n(f.wage)*days,ot=staff*n(f.otHours)*otHr*days,allow=staff*n(f.allowance)*days;
+  const rooms=fe.stay?Math.ceil(staff/(n(f.perRoom)||1)):0,hotel=rooms*n(f.hotelRoom)*days;
+  const transport=n(f.transport),other=n(f.other),rent=n(fe.rent);
+  const fixed=labor+ot+allow+hotel+transport+other+rent,gp=net-food,np=gp-fixed;
+  const beNet=n(f.foodPct)<1?fixed/(1-n(f.foodPct)):0,beGross=vatIn?beNet*(1+VAT):beNet;
+  return {days,staff,vatIn,gross,vat:gross-net,net,food,otHr,labor,ot,allow,rooms,hotel,transport,other,rent,fixed,gp,np,beGross,beDay:beGross/days,f};
+}
+function feasPanel(e,c){
+  const ok=c.np>0,label=!c.gross?"ยังไม่ได้ใส่ยอดขาย":ok?"ผ่าน · มีกำไร":"ไม่ผ่าน · ขาดทุน";
+  const L=(t,v,cls="",note="")=>`<div class="l ${cls}"><span>${t}${note?` <small class="muted">${note}</small>`:""}</span><span class="num">${v}</span></div>`;
+  return `<div class="pl">
+  <div class="panel stmt">
+    <div class="row" style="justify-content:space-between;margin-bottom:6px"><span class="sectionlabel">P&amp;L Feasibility · ${c.days} วัน</span><span class="pill ${!c.gross?"done":ok?"ok":"cx"}">${label}</span></div>
+    ${L("Target sales"+(c.vatIn?" (รวม VAT)":""),fmt(c.gross,2),"",`${fmt(c.gross/c.days)}/วัน`)}
+    ${c.vatIn?L("หัก VAT 7%","("+fmt(c.vat,2)+")","sub"):""}
+    ${L("ยอดขายสุทธิ",fmt(c.net,2),"key")}
+    ${L("ต้นทุนอาหาร","("+fmt(c.food,2)+")","",fmt(n(c.f.foodPct)*100,1)+"%")}
+    ${L("กำไรขั้นต้น",fmt(c.gp,2),"key")}
+    ${L("ค่าแรง","("+fmt(c.labor,2)+")","sub",`${c.staff} คน × ${fmt(c.f.wage)} × ${c.days} วัน`)}
+    ${L("OT","("+fmt(c.ot,2)+")","sub",`${fmt(c.f.otHours)} ชม. × ${fmt(c.otHr,3)}`)}
+    ${L("เบี้ยเลี้ยง","("+fmt(c.allow,2)+")","sub",`${fmt(c.f.allowance)}/คน/วัน`)}
+    ${L("ค่าที่พัก","("+fmt(c.hotel,2)+")","sub",c.rooms?`${c.rooms} ห้อง × ${c.days} คืน`:"ไม่พักค้าง")}
+    ${L("ค่าเช่าบูธ","("+fmt(c.rent,2)+")","sub")}
+    ${L("ค่ารถขนส่ง","("+fmt(c.transport,2)+")","sub")}
+    ${L("ค่าอื่น ๆ","("+fmt(c.other,2)+")","sub","น้ำแข็ง, ขนส่งระหว่างวัน")}
+    ${L("ค่าใช้จ่ายรวม","("+fmt(c.fixed,2)+")")}
+    <div class="l final"><span>กำไรสุทธิ</span><span class="num ${c.np<0?"neg":"pos"}">${fmt(c.np,2)} <small class="muted">${pct(c.np,c.net)}</small></span></div>
+  </div>
+  <div class="panel" style="display:flex;flex-direction:column;gap:10px">
+    <div class="sectionlabel">จุดคุ้มทุน</div>
+    <div><div class="num" style="font-size:1.4rem;font-weight:600">฿${fmt(c.beDay)}<span class="muted" style="font-size:.85rem"> /วัน</span></div>
+    <div class="muted" style="font-size:.85rem">ยอดขายขั้นต่ำ${c.vatIn?" (รวม VAT)":""} รวมทั้งงาน ฿${fmt(c.beGross)}</div></div>
+    <div class="notice ${!c.gross?"info":c.gross>=c.beGross?"info":"warn"}">${!c.gross?"ใส่ Target sales เพื่อดูผล":c.gross>=c.beGross?`Target sales สูงกว่าจุดคุ้มทุน ฿${fmt(c.gross-c.beGross)}`:`Target sales ต่ำกว่าจุดคุ้มทุน ฿${fmt(c.beGross-c.gross)}`}</div>
+  </div></div>`;
+}
+function menuCost(m){return (m?.bom||[]).reduce((a,b)=>a+n(b.qty)*n(b.unitCost),0)}
+function menuFor(line){return S.menus.find(m=>m.id===line.menuId)||S.menus.find(m=>m.name===line.name)}
+function defaultPL(e){
+  const days=sortedDates(e).length||1;
+  if(e.format==="Booth"){
+    const c=calcFeas(e),r=v=>Math.round(v/days*100)/100;
+    return {sales:(e.packages||[]).map(p=>({menuId:p.menuId||"",name:p.name,price:n(p.price),qty:Math.round(n(p.qty)/days)})),cateringFee:0,
+      otherCosts:[["ค่าแรง",c.labor],["OT",c.ot],["เบี้ยเลี้ยง",c.allow],["ค่าที่พัก",c.hotel],["ค่าเช่าบูธ",c.rent],["ค่ารถขนส่ง",c.transport],["ค่าอื่น ๆ (น้ำแข็ง ฯลฯ)",c.other]]
+        .map(([l,v])=>({label:l,amount:r(v)})),saved:false};
+  }
+  return {sales:(e.packages||[]).map(p=>({menuId:p.menuId||"",name:p.name,price:n(p.price),qty:Math.round(n(p.qty)/days)})),
+    cateringFee:n(e.cateringFeePerDay),otherCosts:DEFAULT_COSTS.map(l=>({label:l,amount:0})),saved:false};
+}
+/* Catering: sales fixed by the confirmation, split across event days (remainder on the last day) */
+function cateringDay(e,d){
+  const ds=sortedDates(e),days=ds.length||1,last=ds[ds.length-1]===d;
+  if(d==="event")return {sales:(e.packages||[]).map(p=>({menuId:p.menuId||"",name:p.name,price:n(p.price),qty:n(p.qty)})),cateringFee:n(e.cateringFeePerDay)*days};
+  return {sales:(e.packages||[]).map(p=>{const base=Math.floor(n(p.qty)/days);
+    return {menuId:p.menuId||"",name:p.name,price:n(p.price),qty:last?n(p.qty)-base*(days-1):base}}),cateringFee:n(e.cateringFeePerDay)};
+}
+const fmt0=v=>String(n(v));
+function boothMenus(){
+  const b=S.menus.filter(m=>(m.channel||[]).includes("booth"));
+  return (b.length?b:S.menus).slice().sort((x,y)=>String(x.name).localeCompare(String(y.name),"th"));
+}
+function effPL(e,d,pl){return e.format==="Booth"?pl:{...pl,...cateringDay(e,d)}}
+function calcPL(e,pl){
+  const gross=(pl.sales||[]).reduce((a,s)=>a+n(s.price)*n(s.qty),0)+n(pl.cateringFee);
+  const vatIn=e.vatIncluded!==false;
+  const net=vatIn?gross/(1+VAT):gross;
+  let cogs=0,missing=[];
+  (pl.sales||[]).forEach(s=>{const m=menuFor(s);const c=menuCost(m);if(n(s.qty)>0&&!c)missing.push(s.name);cogs+=c*n(s.qty)});
+  const other=(pl.otherCosts||[]).reduce((a,c)=>a+n(c.amount),0);
+  const gp=net-cogs,np=gp-other;
+  return {gross,vat:gross-net,net,cogs,gp,other,np,missing};
+}
+function eventStatus(e){
+  if(e.status==="cancelled")return["cx","ยกเลิก"];
+  if(e.status==="tbd")return["live","รอกำหนดวัน"];
+  const ds=sortedDates(e),t=today();
+  if(!ds.length)return["ok","คอนเฟิร์มแล้ว"];
+  if(t>ds[ds.length-1])return["done","จบงานแล้ว"];
+  if(t>=ds[0])return["live","กำลังจัดงาน"];
+  return["ok","คอนเฟิร์มแล้ว"];
+}
+
+/* ---------- platform ---------- */
+async function boot(){
+  S.members={};S.accessReady=false;showGate();
+  try{
+    const [db,user]=await Promise.all([claude.use("db"),claude.use("user")]);
+    S.db=db;S.user=user;
+    if(user){S.isOwner=await user.isOwner();S.levelAdmin=await user.canEdit();S.uid=await user.id()}
+  }catch(e){}
+  claude.use("downloads").then(d=>{S.downloads=d;if(S.brand)rerender()}).catch(()=>{});
+  claude.use("assets").then(a=>{S.assets=a;if(S.view==="event"||S.view==="new")rerender()}).catch(()=>{});
+  S.platformReady=true;
+  if(!S.db||!S.uid){S.accessReady=true;showGate();return}
+  S.db.doc("access/members").onSnapshot(d=>{S.members=(d.exists&&d.data().members)||{};S.accessReady=true;applyAccess()},
+    ()=>{S.accessReady=true;applyAccess()});
+}
+function allowedBrands(){
+  if(S.isOwner)return Object.keys(BRANDS);
+  const m=S.uid&&S.members[S.uid];return m?(m.brands||[]).filter(b=>BRANDS[b]):[];
+}
+function myRole(){if(S.isOwner)return"owner";const m=S.uid&&S.members[S.uid];return m?m.role:null}
+function applyAccess(){
+  const al=allowedBrands(),role=myRole();
+  S.isSys=S.isOwner||(role==="sysadmin"&&!!S.levelAdmin);
+  S.isAdmin=S.isSys||((role==="admin"||role==="register")&&!!S.levelAdmin);
+  S.canSales=S.isSys||((role==="admin"||role==="sales")&&!!S.levelAdmin);
+  if(S.brand&&al.includes(S.brand)){rerender();return}
+  if(S.brand)leaveBrand();
+  const saved=ls("bc.brand");
+  if(al.length===1)enterBrand(al[0]);
+  else if(saved&&al.includes(saved))enterBrand(saved);
+  else showGate();
+}
+function leaveBrand(){S.unsub.forEach(u=>u());S.unsub=[];if(S.plUnsub)S.plUnsub();if(S.upUnsub)S.upUnsub();if(S.payUnsub)S.payUnsub();S.brand=null}
+function rerender(){
+  if(S.view==="new"&&$("#evForm"))readForm();
+  else if(S.view==="menus"&&$("#m-name"))readMenu();
+  else if(S.view==="event"){if($("#pl-fee"))readPL();readUp();readPay()}
+  render();
+}
+function subscribe(){
+  S.unsub.forEach(u=>u());S.unsub=[];S.evReady=S.mnReady=false;S.events=[];S.menus=[];
+  if(!S.db){S.evReady=S.mnReady=true;render();return}
+  const base="b/"+S.brand;
+  S.unsub.push(S.db.collection(base+"/events").onSnapshot(q=>{S.events=q.docs.map(d=>({id:d.id,...d.data()}));S.evReady=true;rerender()},()=>{S.evReady=true;rerender()}));
+  S.acts=[];S.unsub.push(S.db.collection(base+"/activity").orderBy("at","desc").limit(200).onSnapshot(q=>{S.acts=q.docs.map(d=>({id:d.id,...d.data()}));rerender()},()=>{}));
+  S.reads={};S.unsub.push(S.db.collection("reads").onSnapshot(q=>{const r={};q.docs.forEach(d=>r[d.id]=d.data());S.reads=r;rerender()},()=>{}));
+  S.unsub.push(S.db.doc(base+"/settings/booth").onSnapshot(d=>{S.fc=d.exists?d.data():null;S.fcReady=true;rerender()},()=>{S.fcReady=true}));
+  S.unsub.push(S.db.collection(base+"/menus").onSnapshot(q=>{S.menus=q.docs.map(d=>({id:d.id,...d.data()}));S.mnReady=true;rerender()},()=>{S.mnReady=true;rerender()}));
+}
+function subscribePL(){
+  if(S.plUnsub){S.plUnsub();S.plUnsub=null}S.pl={};
+  if(!S.db||!S.eventId)return;
+  S.plUnsub=S.db.collection("b/"+S.brand+"/events/"+S.eventId+"/pl").onSnapshot(q=>{
+    const next={};q.docs.forEach(d=>next[d.id]=d.data());S.pl=next;
+    if(S.view==="event"&&(!S.draft||!S.draft._dirty)){S.draft=null;render()}
+  },()=>{});
+  if(S.payUnsub){S.payUnsub();S.payUnsub=null}S.payments=[];
+  S.payUnsub=S.db.collection("b/"+S.brand+"/events/"+S.eventId+"/payments").onSnapshot(q=>{
+    S.payments=q.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>String(a.date+a.at).localeCompare(String(b.date+b.at)));
+    if(S.view==="event")rerender();
+  },()=>{});
+  if(S.upUnsub){S.upUnsub();S.upUnsub=null}S.updates=[];
+  S.upUnsub=S.db.collection("b/"+S.brand+"/events/"+S.eventId+"/updates").onSnapshot(q=>{
+    S.updates=q.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>String(b.at).localeCompare(String(a.at)));
+    if(S.view==="event")rerender();
+  },()=>{});
+}
+async function write(fn,okMsg){
+  try{await fn();if(okMsg)toast(okMsg);return true}
+  catch(e){toast(e?.code==="invalid_argument"?"บันทึกไม่ได้: บัญชีนี้มีสิทธิ์ดูอย่างเดียว":"บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง");return false}
+}
+
+/* ---------- navigation ---------- */
+function showGate(){
+  S.brand=null;document.body.removeAttribute("data-brand");$("#gate").hidden=false;$("#app").hidden=true;
+  const al=S.accessReady?allowedBrands():[],msg=$("#gateMsg");
+  $("#brandPick").innerHTML=al.map(b=>`<button class="bp ${b==="tsc"?"bp-tsc":"bp-jd"}" data-pick="${b}" type="button"><span class="unit">Catering · Booth</span><b>${esc(BRANDS[b].name)}</b></button>`).join("");
+  msg.hidden=!!al.length;
+  msg.textContent=!S.accessReady?"กำลังตรวจสอบสิทธิ์ผู้ใช้…":!S.uid?"เข้าสู่ระบบ claude.ai ก่อน แล้วเปิดหน้านี้ใหม่":"บัญชีนี้ยังไม่ได้รับสิทธิ์เข้าแบรนด์ใด แจ้งผู้ดูแลระบบให้เพิ่มสิทธิ์";
+}
+function enterBrand(b){
+  if(!allowedBrands().includes(b))return;
+  S.brand=b;ls("bc.brand",b);document.body.dataset.brand=b;
+  $("#gate").hidden=true;$("#app").hidden=false;S.view="events";S.eventId=null;
+  if(S.platformReady)subscribe();render();
+}
+document.addEventListener("click",ev=>{
+  const p=ev.target.closest("[data-pick]");if(p){enterBrand(p.dataset.pick);return}
+  const t=ev.target.closest("[data-view]");if(t){go(t.dataset.view);return}
+});
+$("#switchBrand").onclick=()=>{leaveBrand();ls("bc.brand",null);showGate()};
+function go(view,opts={}){
+  if(view==="notif"||S.view==="notif")S.notifPrevSeen=undefined;
+  S.view=view;S.confirmDel=null;S.draft=null;
+  if(view==="new"){S.editEvent=opts.event||null;S.slipFile=null}
+  if(view==="event"){S.eventId=opts.id;S.evTab=opts.tab||"info";S.upOpen=false;S.upDraft=null;S.upDel=null;S.payOpen=false;S.payDraft=null;S.payDel=null;S.slipView=null;S.day=opts.day||null;subscribePL()}
+  if(view==="menus"){S.editMenu=opts.menu??null}
+  render();window.scrollTo(0,0);
+}
+
+/* ---------- render ---------- */
+function render(){
+  if(!S.brand)return;
+  $("#brandName").textContent=BRANDS[S.brand].name;
+  const role=myRole();
+  const pend=!S.isOwner&&role&&role!=="viewer"&&!S.levelAdmin;
+  $("#roleChip").textContent=S.isOwner?"เจ้าของระบบ":pend?"ดูอย่างเดียว (รอสิทธิ์ Editor)":(ROLE_LABEL[role]||"ดูอย่างเดียว");
+  $("#tabNew").hidden=!S.isAdmin;
+  $("#tabUsers").hidden=!S.isSys;
+  {const u=unreadCount(),b=$("#notifBadge");b.hidden=!u;b.textContent=u>99?"99+":String(u)}
+  $("#tabMenus").hidden=!S.isSys;
+  $("#switchBrand").hidden=allowedBrands().length<2;
+  if((S.view==="users"||S.view==="menus")&&!S.isSys)S.view="events";
+  document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-current",(b.dataset.view===S.view||(S.view==="event"&&b.dataset.view==="events"))?"page":"false"));
+  const m=$("#main");
+  if(S.view==="events")m.innerHTML=viewEvents();
+  else if(S.view==="dash")m.innerHTML=viewDash();
+  else if(S.view==="notif")m.innerHTML=viewNotif();
+  else if(S.view==="new")m.innerHTML=viewForm();
+  else if(S.view==="event")m.innerHTML=viewEvent();
+  else if(S.view==="menus")m.innerHTML=viewMenus();
+  else if(S.view==="users")m.innerHTML=viewUsers();
+  bind();
+  try{document.documentElement.style.setProperty("--barh",($(".bar")?.offsetHeight||0)+"px")}catch(_){}
+}
+
+/* events list */
+function viewEvents(){
+  const t=today();
+  let list=[...S.events].sort((a,b)=>(sortedDates(a)[0]||"").localeCompare(sortedDates(b)[0]||""));
+  const counts={upcoming:0,past:0,all:list.length};
+  list.forEach(e=>{const ds=sortedDates(e);(ds.length&&ds[ds.length-1]<t)?counts.past++:counts.upcoming++});
+  if(S.filter==="upcoming")list=list.filter(e=>{const ds=sortedDates(e);return !ds.length||ds[ds.length-1]>=t});
+  if(S.filter==="past")list=list.filter(e=>{const ds=sortedDates(e);return ds.length&&ds[ds.length-1]<t}).reverse();
+  const head=`<div class="row" style="justify-content:space-between">
+    <h1>งานที่คอนเฟิร์มแล้ว</h1>
+    <div class="row">${S.downloads&&S.events.length?`<button class="btn sec" id="pdfAll" type="button">Export PDF สรุปงาน</button>`:""}${S.isAdmin?`<button class="btn" data-view="new" type="button">+ ลงทะเบียนงาน</button>`:""}</div></div>
+    <div class="filters">${[["upcoming","กำลังจะถึง"],["past","จบแล้ว"],["all","ทั้งหมด"]].map(([k,l])=>`<button class="fbtn" data-filter="${k}" aria-pressed="${S.filter===k}" type="button">${l} <span class="num">${counts[k]}</span></button>`).join("")}</div>`;
+  if(!S.evReady)return head+`<div class="empty">กำลังโหลดรายการงาน…</div>`;
+  if(!list.length)return head+`<div class="empty">ยังไม่มีงานในหมวดนี้${S.isAdmin?"<br>กด “+ ลงทะเบียนงาน” เพื่อเพิ่มงานแรก":""}</div>`;
+  return head+`<div class="evlist">${list.map(e=>{
+    const ds=sortedDates(e),[cls,lab]=eventStatus(e),f=ds[0];
+    const dd=f?f.split("-"):null;
+    return `<button class="ev" data-open="${esc(e.id)}" type="button">
+      <div class="datebox">${dd?`<span class="d">${+dd[2]}</span><span class="m">${TH_M[+dd[1]-1]}</span>`:`<span class="m">ไม่มีวันที่</span>`}</div>
+      <div class="meta"><div class="t">${esc(e.customer)} · ${esc(e.venue)}</div>
+        <div class="s">${esc(e.format)} · ${datesText(ds)}${ds.length>1?` (${ds.length} วัน)`:""} · ${timeText(e)}${isBooth(e)?"":` · ${fmt(e.guests)} ท่าน`}</div></div>
+      <div class="amt">${cls==="done"?(e.actual&&n(e.actual.days)?`<div class="sectionlabel" style="font-size:.66rem">ยอดขายจริง</div><div class="num" style="font-weight:600">฿${fmt(e.actual.gross)}</div>
+        <div class="num ${n(e.actual.np)<0?"neg":"pos"}" style="font-size:.85rem;font-weight:600">${n(e.actual.np)<0?"ขาดทุน":"กำไร"} ฿${fmt(Math.abs(n(e.actual.np)))}</div>`
+        :`<div class="sectionlabel" style="font-size:.66rem">ยอดขายจริง</div><div class="muted" style="font-size:.85rem">ยังไม่กรอกยอด</div>`)
+      :`${isBooth(e)?`<div class="sectionlabel" style="font-size:.66rem">Target sales</div>`:""}<div class="num" style="font-weight:600">฿${fmt(eventTotal(e))}</div>`}<span class="pill ${cls}">${lab}</span>
+        ${isBooth(e)?"":`<div class="muted" style="font-size:.76rem;margin-top:2px">${n(e.paid)>=eventTotal(e)-0.005&&n(e.paid)?"ชำระครบ":n(e.paid)?"ค้าง ฿"+fmt(eventTotal(e)-n(e.paid)):"ยังไม่ชำระ"}</div>`}</div>
+    </button>`}).join("")}</div>`;
+}
+
+/* registration form */
+const FORMATS=["Catering A (Snack box)","Catering B (Buffet)","Booth"];
+const safeUrl=u=>/^https:\/\/\S+$/i.test(String(u||""));
+const isBooth=e=>e.format==="Booth";
+function blankEvent(){return{format:"Catering A (Snack box)",customer:"",phone:"",dates:[],serveFrom:"08:00",serveTo:"13:00",venue:"",guests:"",
+  packages:[{menuId:"",name:"",price:"",qty:""}],distributionNote:"",cateringFeePerDay:"",vatIncluded:true,status:"confirmed",note:""}}
+function viewForm(){
+  if(!S.isAdmin)return `<div class="empty">เฉพาะผู้ดูแลที่ลงทะเบียนงานได้</div>`;
+  const e=S.draft||(S.draft=JSON.parse(JSON.stringify(S.editEvent||blankEvent())));
+  const total=eventTotal(e);
+  return `<div><div class="sectionlabel">${S.editEvent?"แก้ไขงาน":"ยืนยันงาน"}</div><h1>${S.editEvent?"แก้ไขข้อมูลงาน":"ลงทะเบียนงาน Catering / Booth"}</h1></div>
+  <form id="evForm" class="panel" style="display:flex;flex-direction:column;gap:18px" novalidate>
+    <div class="grid">
+      <label>รูปแบบงาน<select id="f-format">${(FORMATS.includes(e.format)?FORMATS:[...FORMATS,e.format]).map(o=>`<option ${e.format===o?"selected":""}>${esc(o)}</option>`).join("")}</select></label>
+      <label>ลูกค้า/ผู้ติดต่อ *<input id="f-customer" value="${esc(e.customer)}" required></label>
+      <label>โทร<input id="f-phone" value="${esc(e.phone)}" inputmode="tel"></label>
+      ${isBooth(e)?"":`<label>จำนวนแขก (ท่าน)<input id="f-guests" type="number" min="0" value="${esc(e.guests)}"></label>`}
+    </div>
+    <div class="grid">
+      <label>สถานที่ *<input id="f-venue" value="${esc(e.venue)}" required></label>
+      <label>ลิงก์ Google Maps<input id="f-map" type="url" value="${esc(e.mapUrl)}" placeholder="วางลิงก์จาก Google Maps"></label>
+    </div>
+    <div>
+      <div class="sectionlabel" style="margin-bottom:6px">วันที่จัดงาน</div>
+      <div class="row" id="dateRows">${dateRanges(e.dates).map((r,i)=>`<span class="chip" style="background:var(--brand-soft);color:var(--ink);font-size:.86rem;padding:4px 6px 4px 12px">${rangeLabel(r)}${r[0]!==r[1]?` · ${Math.round((new Date(r[1])-new Date(r[0]))/864e5)+1} วัน`:""}<button class="x" type="button" data-delrange="${i}" aria-label="ลบช่วงวันที่">×</button></span>`).join("")||`<span class="muted">ยังไม่ได้เลือกวัน</span>`}</div>
+      <div class="row" style="margin-top:8px;align-items:flex-end">
+        <label>ตั้งแต่<input type="date" id="f-d-from" style="width:auto"></label>
+        <label>ถึง (ถ้าวันเดียวเว้นว่าง)<input type="date" id="f-d-to" style="width:auto"></label>
+        <button class="btn sec small" type="button" id="addDate">+ เพิ่มวัน/ช่วงวัน</button></div>
+    </div>
+    <div class="grid">
+      <label>เวลาเสิร์ฟ เริ่ม<input id="f-from" type="time" value="${esc(e.serveFrom)}"></label>
+      <label>ถึง<input id="f-to" type="time" value="${esc(e.serveTo)}"></label>
+      <label>สถานะ<select id="f-status"><option value="confirmed" ${e.status!=="cancelled"&&e.status!=="tbd"?"selected":""}>คอนเฟิร์มแล้ว</option><option value="tbd" ${e.status==="tbd"?"selected":""}>รอกำหนดวัน</option><option value="cancelled" ${e.status==="cancelled"?"selected":""}>ยกเลิก</option></select></label>
+    </div>
+    <div>
+      <div class="sectionlabel" style="margin-bottom:6px">${isBooth(e)?"เมนูที่ขายในบูธ (ไม่บังคับ)":"เมนู / ชุดอาหาร (ทั้งงาน)"}</div>
+      <datalist id="menuNames">${S.menus.map(m=>`<option value="${esc(m.name)}">`).join("")}</datalist>
+      <div class="tbl-wrap"><table class="line-tbl"><thead><tr><th>ชุด / เมนู</th><th class="r">ราคา/ชุด</th><th class="r">จำนวน</th><th class="r">รวม</th><th></th></tr></thead><tbody>
+      ${e.packages.map((p,i)=>`<tr><td><input id="f-pk-name-${i}" list="menuNames" data-pk="${i}" data-k="name" value="${esc(p.name)}" placeholder="เลือกจากเมนู หรือพิมพ์"></td>
+        <td><input id="f-pk-price-${i}" type="number" data-pk="${i}" data-k="price" value="${esc(p.price)}" style="width:100px;text-align:right"></td>
+        <td><input id="f-pk-qty-${i}" type="number" data-pk="${i}" data-k="qty" value="${esc(p.qty)}" style="width:90px;text-align:right"></td>
+        <td class="r num">${fmt(n(p.price)*n(p.qty))}</td>
+        <td>${e.packages.length>1?`<button class="x" type="button" data-delpk="${i}" aria-label="ลบรายการ">×</button>`:""}</td></tr>`).join("")}
+      </tbody></table></div>
+      <button class="btn sec small" type="button" id="addPk" style="margin-top:8px">+ เพิ่มรายการ</button>
+    </div>
+    ${isBooth(e)?boothInputs(e):`<div class="grid">
+      <label>ค่าบริการ Catering ต่อวัน (บาท)<input id="f-fee" type="number" value="${esc(e.cateringFeePerDay)}"></label>
+      <label>การแจก / หมายเหตุการเสิร์ฟ<input id="f-dist" value="${esc(e.distributionNote)}" placeholder="เช่น แจกวันละ 50 กล่อง"></label>
+      <label style="flex-direction:row;align-items:center;gap:8px;margin-top:22px"><input type="checkbox" id="f-vat" ${e.vatIncluded!==false?"checked":""} style="width:auto"> ราคารวม VAT 7% แล้ว</label>
+    </div>`}
+    ${isBooth(e)?"":formSlip(e)}
+    <label>หมายเหตุ<textarea id="f-note">${esc(e.note)}</textarea></label>
+    <div class="row" style="justify-content:space-between;border-top:1px solid var(--line);padding-top:14px">
+      ${isBooth(e)?`<div><div class="sectionlabel">Target sales ทั้งงาน</div><div class="num" style="font-size:1.4rem;font-weight:600">฿${fmt(total)}</div>
+        <div class="muted" style="font-size:.82rem">กำไรสุทธิตาม Target ฿${fmt(calcFeas(e,fcNow()).np)}</div></div>`
+      :`<div><div class="sectionlabel">ยอดรวมทั้งงาน</div><div class="num" style="font-size:1.4rem;font-weight:600">฿${fmt(total)}</div>
+        <div class="muted" style="font-size:.82rem">อาหาร ฿${fmt(total-n(e.cateringFeePerDay)*(e.dates.filter(Boolean).length||1))} + ค่าบริการ ฿${fmt(n(e.cateringFeePerDay))} × ${e.dates.filter(Boolean).length||1} วัน</div></div>`}
+      <div class="row"><button class="btn sec" type="button" id="cancelForm">ยกเลิก</button><button class="btn" type="submit">${S.editEvent?"บันทึกการแก้ไข":"ยืนยันงาน"}</button></div>
+    </div>
+    <p id="formErr" class="notice warn" hidden></p>
+  </form>`;
+}
+function formSlip(e){
+  const sl=e.slip||{},f=S.slipFile;
+  if(!S.assets)return `<p class="notice info" style="margin:0">แนบสลิปโอนเงินได้เฉพาะทีมลงทะเบียนงาน</p>`;
+  return `<div style="display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--line);padding-top:14px">
+    <div><h3>สลิปโอนเงินจากลูกค้า</h3><p class="muted" style="margin:2px 0 0;font-size:.85rem">ไม่บังคับ แนบภายหลังได้ในหน้างาน</p></div>
+    <div class="row">${f?`<span class="chip" style="background:var(--brand-soft);color:var(--ink);padding:4px 6px 4px 12px">📎 ${esc(f.name)} <button class="x" type="button" id="slipRemove" aria-label="เอาไฟล์ออก">×</button></span>`
+      :`<label style="flex:1">ไฟล์สลิป (รูป หรือ PDF)<input id="f-slip" type="file" accept="image/png,image/jpeg,image/webp,application/pdf"></label>`}</div>
+
+  </div>`;
+}
+function boothInputs(e){
+  const fe=e.feas||{};
+  return `<div style="display:flex;flex-direction:column;gap:12px;border-top:1px solid var(--line);padding-top:14px">
+    <div><h3>Feasibility บูธ</h3><p class="muted" style="margin:2px 0 0;font-size:.85rem">ใส่ Target sales และค่าเช่าเอง ค่าใช้จ่ายอื่นคิดจาก Fixed cost Booth ของแบรนด์ (แก้ได้ในแท็บเมนู &amp; BOM)</p></div>
+    <div class="grid">
+      <label>Target sales ต่อวัน (บาท) *<input id="f-fs-sales" type="number" min="0" value="${esc(fe.salesPerDay)}"></label>
+      <label>ค่าเช่าบูธ ทั้งงาน (บาท) *<input id="f-fs-rent" type="number" min="0" value="${esc(fe.rent)}"></label>
+      <label>จำนวนพนักงาน (คน) *<input id="f-fs-staff" type="number" min="0" value="${esc(fe.staff)}"></label>
+      <div style="display:flex;flex-direction:column;gap:6px;justify-content:flex-end">
+        <label style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="f-fs-stay" ${fe.stay?"checked":""} style="width:auto"> พักค้างคืน (คิดค่าที่พัก)</label>
+        <label style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="f-vat" ${e.vatIncluded!==false?"checked":""} style="width:auto"> ยอดขายรวม VAT 7%</label>
+      </div>
+    </div>
+    ${feasPanel(e,calcFeas(e,fcNow()))}
+  </div>`;
+}
+function readForm(){
+  const e=S.draft;
+  e.format=$("#f-format").value;e.customer=$("#f-customer").value.trim();e.phone=$("#f-phone").value.trim();
+  e.guests=$("#f-guests")?$("#f-guests").value:e.guests;e.venue=$("#f-venue").value.trim();e.mapUrl=$("#f-map").value.trim();e.serveFrom=$("#f-from").value;e.serveTo=$("#f-to").value;
+  e.status=$("#f-status").value;
+  if($("#f-fee")){e.cateringFeePerDay=$("#f-fee").value;e.distributionNote=$("#f-dist").value.trim()}
+  if($("#f-fs-sales"))e.feas={salesPerDay:$("#f-fs-sales").value,rent:$("#f-fs-rent").value,staff:$("#f-fs-staff").value,stay:$("#f-fs-stay").checked};
+  e.vatIncluded=$("#f-vat").checked;e.note=$("#f-note").value;
+  e.packages=e.packages.map((p,i)=>({...p,name:$("#f-pk-name-"+i).value.trim(),price:$("#f-pk-price-"+i).value,qty:$("#f-pk-qty-"+i).value}));
+}
+
+/* event sheet */
+function viewEvent(){
+  const e=S.events.find(x=>x.id===S.eventId);
+  if(!e)return `<button class="btn sec small" data-view="events" type="button">← กลับ</button><div class="empty">${S.evReady?"ไม่พบงานนี้":"กำลังโหลด…"}</div>`;
+  const ds=sortedDates(e),[cls,lab]=eventStatus(e),t=today();
+  if(!isBooth(e))S.day="event";
+  else if(!S.day||!ds.includes(S.day))S.day=ds.find(d=>d===t)||ds.find(d=>d<=t&&!S.pl[d])||ds[0];
+  const rows=ds.map(d=>{const pl=S.pl[d]?{...S.pl[d],saved:true}:null;return{d,pl,c:pl?calcPL(e,effPL(e,d,pl)):null}});
+  const sum=rows.filter(r=>r.c).reduce((a,r)=>{for(const k of["gross","net","cogs","gp","other","np"])a[k]+=r.c[k];return a},{gross:0,net:0,cogs:0,gp:0,other:0,np:0});
+  const confirmDel=S.confirmDel===e.id,tab=isBooth(e)?(S.evTab||"info"):(S.evTab==="pl"?"pl":"info");
+  const tabBar=true?`<div class="evtabs" role="tablist">${(isBooth(e)?[["info","รายละเอียดงาน"],["sales","กรอกยอดขาย"],["pl","สรุปกำไรขาดทุน"]]:[["info","รายละเอียดงาน"],["pl","งบกำไรขาดทุน"]]).map(([k,l])=>`<button class="evtab" role="tab" data-evtab="${k}" aria-selected="${tab===k}" type="button">${l}</button>`).join("")}</div>`:"";
+  const compactHead=`<div><div class="row" style="gap:8px"><span class="pill ${cls}">${lab}</span><span class="muted">${esc(e.format)} · ${datesText(ds)}</span></div>
+    <h1 style="margin-top:4px">${esc(e.customer)}</h1><div class="muted">${esc(e.venue)}</div></div>`;
+  return `${true?`<div class="evtabs-wrap"><div class="row" style="gap:10px;flex-wrap:nowrap">
+      <button class="btn sec small" data-view="events" type="button" style="flex:none">← งานทั้งหมด</button>
+      <div style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600">${esc(e.customer)}</div></div>${tabBar}</div>`
+    :`<button class="btn sec small" data-view="events" type="button" style="align-self:flex-start">← งานทั้งหมด</button>`}
+  ${tab==="info"?`<section class="panel" style="display:flex;flex-direction:column;gap:16px">
+    <div class="sheet-head"><div><div class="row" style="gap:8px"><span class="pill ${cls}">${lab}</span><span class="muted">${esc(e.format)}</span></div>
+      <div class="sectionlabel" style="margin-top:6px">ลูกค้า/ผู้ติดต่อ</div><h1>${esc(e.customer)}</h1><div class="muted">${esc(e.venue)}</div>
+      ${safeUrl(e.mapUrl)?`<a class="btn sec small" href="${esc(e.mapUrl)}" target="_blank" rel="noopener noreferrer" style="display:inline-block;margin-top:8px;text-decoration:none">📍 เปิดใน Google Maps</a>`:""}</div>
+      <div style="text-align:right"><div class="sectionlabel">${isBooth(e)?"Target sales":"มูลค่างาน"}${e.vatIncluded!==false?" (รวม VAT)":""}</div><div class="num" style="font-size:1.5rem;font-weight:600">฿${fmt(eventTotal(e))}</div>
+      <div class="row" style="justify-content:flex-end;margin-top:6px">${S.downloads?`<button class="btn small" id="pdfEv" type="button">Export PDF</button>`:""}${S.isAdmin?`<button class="btn sec small" id="editEv" type="button">แก้ไข</button><button class="btn sec small" id="delEv" type="button">ลบ</button>`:""}</div></div></div>
+    ${confirmDel?`<div class="confirm">ลบงานนี้ถาวร? ข้อมูล P&amp;L ของงานจะถูกซ่อนไปด้วย <button class="btn small" id="delYes" type="button">ลบเลย</button><button class="btn sec small" id="delNo" type="button">ไม่ลบ</button></div>`:""}
+    <dl class="kv" style="margin:0">
+      <div><dt>โทร</dt><dd>${e.phone?`<span style="user-select:all">${esc(e.phone)}</span>`:"–"}</dd></div>
+      <div><dt>วันที่</dt><dd>${datesText(ds)||"–"}${ds.length>1?` <span class="muted">(${ds.length} วัน)</span>`:""}</dd></div>
+      <div><dt>เวลาเสิร์ฟ</dt><dd>${timeText(e)}</dd></div>
+      ${isBooth(e)?"":`<div><dt>จำนวนแขก</dt><dd>${fmt(e.guests)} ท่าน</dd></div>`}
+      <div><dt>เมนู</dt><dd>${(e.packages||[]).map(p=>`${esc(p.name)} ฿${fmt(p.price)} × ${fmt(p.qty)}`).join("<br>")}</dd></div>
+      ${isBooth(e)?`<div><dt>ค่าเช่าบูธ</dt><dd>฿${fmt(e.feas?.rent)}</dd></div><div><dt>พนักงาน</dt><dd>${fmt(e.feas?.staff)} คน${e.feas?.stay?" · พักค้างคืน":""}</dd></div>`
+        :`<div><dt>ค่าบริการ Catering</dt><dd>฿${fmt(e.cateringFeePerDay)}/วัน × ${ds.length} วัน</dd></div>`}
+      ${e.distributionNote?`<div><dt>การแจก</dt><dd>${esc(e.distributionNote)}</dd></div>`:""}
+      ${e.note?`<div><dt>หมายเหตุ</dt><dd>${esc(e.note)}</dd></div>`:""}
+    </dl>
+  </section>`:compactHead}
+  ${isBooth(e)&&tab==="info"?`<section style="display:flex;flex-direction:column;gap:10px"><h2>Feasibility บูธ</h2>${feasPanel(e,calcFeas(e))}
+    <p class="muted" style="margin:0;font-size:.82rem">คิดจาก Fixed cost Booth ณ วันที่บันทึกงาน · กดแก้ไขงานเพื่อคำนวณใหม่ด้วยค่าปัจจุบัน</p></section>`:""}
+  ${!isBooth(e)&&tab==="info"?viewPayments(e):""}
+  ${tab==="info"?viewUpdates(e):""}
+  ${!isBooth(e)?(tab!=="pl"?"":`<section style="display:flex;flex-direction:column;gap:12px"><h2>งบกำไรขาดทุน</h2>
+    <p class="muted" style="margin:0;font-size:.85rem">งานขายขาด ยอดขายมาจากใบคอนเฟิร์มทั้งงาน กรอกเฉพาะค่าใช้จ่ายจริงของงาน</p>
+    ${ds.length?dayPL(e,"event"):`<div class="empty">ยังไม่ได้กำหนดวันที่จัดงาน</div>`}</section>`):tab==="sales"?`<section style="display:flex;flex-direction:column;gap:12px">
+    <h2>กรอกยอดขายรายวัน</h2>
+    <div class="daytabs">${rows.map(r=>`<button class="daytab" data-day="${r.d}" aria-pressed="${r.d===S.day}" type="button">${dLabel(r.d)}<small>${r.c?`กำไร ฿${fmt(r.c.np)}`:r.d<=t?"ยังไม่กรอก":"ยังไม่ถึงวันงาน"}</small></button>`).join("")}</div>
+    ${S.day?dayPL(e,S.day):`<div class="empty">ยังไม่ได้กำหนดวันที่จัดงาน</div>`}
+  </section>`:""}
+  ${tab==="pl"?plCards(e,rows,sum):""}
+  ${tab==="pl"&&rows.some(r=>r.c)?`<section style="display:flex;flex-direction:column;gap:10px"><h2>กำไรขาดทุนรายวัน</h2>
+    <div class="tbl-wrap"><table><thead><tr><th>วันที่</th><th class="r">ยอดขาย (รวม VAT)</th><th class="r">ยอดขายสุทธิ</th><th class="r">COGS</th><th class="r">GP</th><th class="r">ค่าใช้จ่ายอื่น</th><th class="r">กำไรสุทธิ</th><th class="r">%</th></tr></thead><tbody>
+    ${rows.map(r=>`<tr><td>${dLabel(r.d)}</td>${r.c?["gross","net","cogs","gp","other"].map(k=>`<td class="r num">${fmt(r.c[k])}</td>`).join("")+`<td class="r num ${r.c.np<0?"neg":"pos"}">${fmt(r.c.np)}</td><td class="r num">${pct(r.c.np,r.c.net)}</td>`:`<td colspan="7" class="muted">ยังไม่กรอก</td>`}</tr>`).join("")}
+    <tr class="total"><td>รวม</td>${["gross","net","cogs","gp","other"].map(k=>`<td class="r num">${fmt(sum[k])}</td>`).join("")}<td class="r num ${sum.np<0?"neg":"pos"}">${fmt(sum.np)}</td><td class="r num">${pct(sum.np,sum.net)}</td></tr>
+    </tbody></table></div></section>`:""}`;
+}
+function plCards(e,rows,sum){
+  const done=rows.filter(r=>r.c),fz=calcFeas(e),days=rows.length||1;
+  if(!done.length)return `<div class="empty">ยังไม่มีการกรอกยอดขาย<br><button class="btn small" data-evtab="sales" type="button" style="margin-top:10px">ไปหน้ากรอกยอดขาย</button></div>`;
+  const tgt=n(e.feas?.salesPerDay)*done.length,feasNp=fz.np/days*done.length;
+  const card=(t,v,sub,cls="")=>`<div class="panel" style="padding:14px 16px;display:flex;flex-direction:column;gap:2px"><div class="sectionlabel">${t}</div><div class="num ${cls}" style="font-size:1.3rem;font-weight:600">${v}</div><div class="muted" style="font-size:.82rem">${sub}</div></div>`;
+  return `<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
+    ${card("ยอดขายจริง (รวม VAT)","฿"+fmt(sum.gross),tgt?`Target ${done.length} วัน ฿${fmt(tgt)} · ${pct(sum.gross,tgt)}`:"ยังไม่ได้ตั้ง Target sales")}
+    ${card("กำไรสุทธิจริง","฿"+fmt(sum.np),`${pct(sum.np,sum.net)} ของยอดขายสุทธิ`,sum.np<0?"neg":"pos")}
+    ${card("Feasibility ช่วงเดียวกัน","฿"+fmt(feasNp),tgt?`ต่างจากจริง ฿${fmt(sum.np-feasNp)}`:"คิดจาก Target sales = 0")}
+    ${card("กรอกยอดแล้ว",`${done.length}/${rows.length} วัน`,`Food cost ${pct(sum.cogs,sum.net)}`)}
+  </div>`;
+}
+/* PDF export: render an A4 sheet off-screen, rasterize, page it into a PDF */
+const PDF_VARS={jaedang:"--brand:#c8102e;--brand-ink:#ffffff;--brand-soft:#fbe7ea;--brand-2:#c8102e;",tsc:"--brand:#141414;--brand-ink:#d4af5a;--brand-soft:#f5efe0;--brand-2:#b08a35;"};
+const PDF_BASE="--bg:#ffffff;--surface:#ffffff;--ink:#1b1a19;--muted:#5f5a54;--line:#e4e0da;--soft:#f3f1ee;--good:#1f7a4d;--good-soft:#e3f3ea;--warn:#a15c00;--warn-soft:#fff1dc;--bad:#b42318;--bad-soft:#fde8e6;color-scheme:light;";
+function pdfSheet(e){
+  const ds=sortedDates(e),[,lab]=eventStatus(e),booth=isBooth(e),pays=S.payments||[],paid=pays.reduce((a,p)=>a+n(p.amount),0),total=eventTotal(e);
+  const row=(k,v)=>v?`<tr><td style="color:var(--muted);width:32%;border-top:1px solid var(--line);padding:6px 8px">${k}</td><td style="border-top:1px solid var(--line);padding:6px 8px">${v}</td></tr>`:"";
+  const now=new Date();
+  return `<div style="background:var(--brand);color:var(--brand-ink);padding:20px 32px;display:flex;justify-content:space-between;align-items:flex-end">
+      <div><div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;opacity:.85">Booth &amp; Catering · ${esc(BRANDS[S.brand].name)}</div>
+      <div style="font-family:var(--f-display);font-size:22px;font-weight:700">ใบสรุปงาน</div></div>
+      <div style="font-size:11px;opacity:.85">พิมพ์ ${now.getDate()} ${TH_M[now.getMonth()]} ${now.getFullYear()+543-2500}</div></div>
+    <div style="padding:24px 32px;display:flex;flex-direction:column;gap:18px">
+      <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start">
+        <div><div style="font-size:12px;color:var(--muted)">${esc(e.format)} · ${lab}</div><div style="font-family:var(--f-display);font-size:24px;font-weight:700">${esc(e.customer)}</div><div style="color:var(--muted)">${esc(e.venue)}</div></div>
+        <div style="text-align:right"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em">${booth?"Target sales":"มูลค่างาน"}${e.vatIncluded!==false?" (รวม VAT)":""}</div><div class="num" style="font-size:22px;font-weight:600">฿${fmt(total,2)}</div></div>
+      </div>
+      <table style="width:100%;font-size:13px">${row("วันที่",datesText(ds)+(ds.length>1?` (${ds.length} วัน)`:""))}${row("เวลา",`${timeText(e)}`)}${row("โทร",esc(e.phone))}
+        ${booth?row("ค่าเช่าบูธ","฿"+fmt(e.feas?.rent))+row("พนักงาน",`${fmt(e.feas?.staff)} คน${e.feas?.stay?" · พักค้างคืน":""}`):row("จำนวนแขก",fmt(e.guests)+" ท่าน")+row("การแจก",esc(e.distributionNote))}
+        ${row("หมายเหตุ",esc(e.note))}${row("แผนที่",safeUrl(e.mapUrl)?`<span style="font-size:10px;word-break:break-all">${esc(e.mapUrl)}</span>`:"")}</table>
+      ${(e.packages||[]).length?`<div><div class="sectionlabel" style="margin-bottom:6px">${booth?"เมนูที่ขาย":"เมนู / ชุดอาหาร"}</div><table style="width:100%;font-size:13px"><thead><tr><th>รายการ</th><th class="r">ราคา</th><th class="r">จำนวน</th><th class="r">รวม</th></tr></thead><tbody>
+        ${e.packages.map(p=>`<tr><td>${esc(p.name)}</td><td class="r num">${fmt(p.price,2)}</td><td class="r num">${fmt(p.qty)}</td><td class="r num">${fmt(n(p.price)*n(p.qty),2)}</td></tr>`).join("")}
+        ${!booth&&n(e.cateringFeePerDay)?`<tr><td>ค่าบริการ Catering</td><td class="r num">${fmt(e.cateringFeePerDay,2)}</td><td class="r num">${ds.length} วัน</td><td class="r num">${fmt(n(e.cateringFeePerDay)*ds.length,2)}</td></tr>`:""}
+        <tr class="total"><td colspan="3">รวม</td><td class="r num">${fmt(total,2)}</td></tr></tbody></table></div>`:""}
+      ${booth?`<div><div class="sectionlabel" style="margin-bottom:6px">Feasibility บูธ</div>${feasPanel(e,calcFeas(e))}</div>`
+        :`<div><div class="sectionlabel" style="margin-bottom:6px">การชำระเงิน</div><table style="width:100%;font-size:13px"><tbody>
+          ${pays.map(p=>`<tr><td style="border-top:1px solid var(--line);padding:6px 8px">${dLabel(p.date)}${p.time?" "+esc(p.time):""} · ${esc(p.kind||"")}${p.ref?` · Ref ${esc(p.ref)}`:""}</td><td class="r num" style="border-top:1px solid var(--line);padding:6px 8px">${fmt(p.amount,2)}</td></tr>`).join("")}
+          <tr class="total"><td>รับแล้ว / คงค้าง</td><td class="r num">${fmt(paid,2)} / ${fmt(Math.max(total-paid,0),2)}</td></tr></tbody></table></div>`}
+      ${(S.updates||[]).length?`<div><div class="sectionlabel" style="margin-bottom:6px">อัปเดตหลังคอนเฟิร์ม</div>${S.updates.map(u=>`<div style="border-top:1px solid var(--line);padding:8px 0;font-size:12px"><b>${esc(u.title||"อัปเดต")}</b>${u.due?` · ภายใน ${dLabel(u.due)}`:""}<div style="white-space:pre-wrap;color:var(--muted)">${esc(u.body)}</div></div>`).join("")}</div>`:""}
+    </div>`;
+}
+function loadScript(src){return new Promise((res,rej)=>{if(document.querySelector(`script[src="${src}"]`)&&(src.includes("html2canvas")?window.html2canvas:window.jspdf))return res();
+  const el=document.createElement("script");el.src=src;el.onload=()=>res();el.onerror=()=>rej(new Error("load"));document.head.appendChild(el)})}
+async function htmlToPdf(html,filename,btn,label,landscape){
+  btn.disabled=true;btn.textContent="กำลังสร้าง PDF…";
+  try{
+    await loadScript("https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js");
+    await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
+    const W=landscape?1123:794,pw=landscape?297:210,ph=landscape?210:297;
+    const host=document.createElement("div");
+    host.style.cssText=`position:absolute;left:-10000px;top:0;width:${W}px;background:#ffffff;color:#1b1a19;font-family:var(--f-body);font-size:13px;line-height:1.5;`+PDF_BASE+(PDF_VARS[S.brand]||"");
+    host.innerHTML=html;document.body.appendChild(host);
+    try{await document.fonts.ready}catch(_){}
+    const canvas=await window.html2canvas(host,{scale:2,backgroundColor:"#ffffff"});host.remove();
+    const pdf=new window.jspdf.jsPDF({unit:"mm",format:"a4",orientation:landscape?"landscape":"portrait"}),pxmm=canvas.width/pw,pageH=Math.floor(ph*pxmm);
+    for(let y=0,i=0;y<canvas.height;y+=pageH,i++){
+      const c=document.createElement("canvas");c.width=canvas.width;c.height=Math.min(pageH,canvas.height-y);
+      const g=c.getContext("2d");g.fillStyle="#ffffff";g.fillRect(0,0,c.width,c.height);g.drawImage(canvas,0,y,c.width,c.height,0,0,c.width,c.height);
+      if(i)pdf.addPage();pdf.addImage(c.toDataURL("image/jpeg",0.92),"JPEG",0,0,pw,c.height/pxmm);
+    }
+    await S.downloads.save({filename,data:pdf.output("blob")});toast("บันทึก PDF แล้ว");
+  }catch(x){if(x?.code!=="declined")toast(x?.code==="unavailable"?"หน้านี้บันทึกไฟล์ไม่ได้":"สร้าง PDF ไม่สำเร็จ ลองใหม่อีกครั้ง")}
+  finally{btn.disabled=false;btn.textContent=label}
+}
+const safeName=v=>String(v||"").replace(/[\\/:*?"<>|\[\]]/g,"").trim();
+function exportPDF(e,btn){return htmlToPdf(pdfSheet(e),(safeName(e.customer)||"event")+"_"+(sortedDates(e)[0]||"")+".pdf",btn,"Export PDF",false)}
+/* activity log & read receipts */
+const ACT_LABEL={new:"งานใหม่",edit:"แก้ไขงาน",del:"ลบงาน",update:"อัปเดต",slip:"แนบสลิป",pl:"บันทึกยอดขาย"};
+async function logAct(type,e,text){
+  if(!S.db||!S.brand)return;
+  try{await S.db.collection("b/"+S.brand+"/activity").doc().set({type,eventId:e?.id||"",title:e?.customer||"",text:text||"",by:S.uid||"",at:new Date().toISOString()})}catch(_){}
+}
+const seenAt=uid=>(S.reads||{})[uid]?.brands?.[S.brand]?.seenAt||"";
+function unreadCount(){if(!S.uid)return 0;const mine=seenAt(S.uid);return (S.acts||[]).filter(a=>a.by!==S.uid&&String(a.at)>mine).length}
+async function markSeen(){
+  if(S.cantMark||S.marking||!S.uid||!S.db||!(S.acts||[]).length)return;
+  const latest=S.acts[0].at;if(seenAt(S.uid)>=latest)return;
+  const cur=(S.reads||{})[S.uid]||{},body={brands:{...(cur.brands||{}),[S.brand]:{seenAt:new Date().toISOString()}}};
+  S.marking=true;try{await S.db.doc("reads/"+S.uid).set(body);S.reads={...S.reads,[S.uid]:body}}catch(_){S.cantMark=true;rerender()}finally{S.marking=false}
+}
+function viewNotif(){
+  const acts=S.acts||[],mine=S.notifPrevSeen??seenAt(S.uid);
+  const readers=Object.keys(S.reads||{});
+  if(!acts.length)return `<div><h1>แจ้งเตือน</h1></div><div class="empty">ยังไม่มีความเคลื่อนไหว<br>การลงทะเบียน แก้ไขงาน อัปเดต สลิป และการบันทึกยอดขายจะแสดงที่นี่</div>`;
+  return `<div class="row" style="justify-content:space-between"><div><h1>แจ้งเตือน</h1><p class="muted" style="margin:2px 0 0;font-size:.85rem">ความเคลื่อนไหวล่าสุดของแบรนด์ ${esc(BRANDS[S.brand].name)} · แสดงว่าใครเปิดอ่านแล้ว</p></div></div>
+  ${S.cantMark?`<p class="notice info" style="margin:0">บัญชีนี้บันทึกสถานะ “อ่านแล้ว” ไม่ได้ ต้องมีสิทธิ์ Contributor ขึ้นไปในเมนู Share</p>`:""}
+  <div style="display:flex;flex-direction:column;gap:8px">${acts.map(a=>{
+    const unread=a.by!==S.uid&&String(a.at)>mine;
+    const who=readers.filter(u=>u!==a.by&&seenAt(u)>=a.at);
+    return `<button class="panel" data-act="${esc(a.id)}" type="button" style="text-align:left;display:grid;grid-template-columns:10px minmax(0,1fr);gap:10px;padding:12px 14px;${unread?"border-color:var(--brand-2)":""}">
+      <span style="width:8px;height:8px;border-radius:50%;margin-top:7px;background:${unread?"var(--brand-2)":"transparent"}" aria-label="${unread?"ยังไม่อ่าน":""}"></span>
+      <span style="min-width:0;display:flex;flex-direction:column;gap:3px">
+        <span class="row" style="gap:8px;justify-content:space-between"><span class="row" style="gap:8px"><span class="pill ${a.type==="del"?"cx":a.type==="new"?"ok":a.type==="pl"?"live":"done"}">${ACT_LABEL[a.type]||"อื่น ๆ"}</span><b style="overflow-wrap:anywhere">${esc(a.title)}</b></span>
+          <span class="muted" style="font-size:.78rem">${esc(new Date(a.at).toLocaleString("th-TH",{dateStyle:"medium",timeStyle:"short"}))}</span></span>
+        ${a.text?`<span style="font-size:.9rem;overflow-wrap:anywhere">${esc(a.text)}</span>`:""}
+        <span class="muted" style="font-size:.8rem">โดย <span data-uname="${esc(a.by)}">…</span> · ${who.length?`อ่านแล้ว ${who.length} คน: ${who.map(u=>`<span data-uname="${esc(u)}">…</span>`).join(", ")}`:"ยังไม่มีใครอ่าน"}</span>
+      </span></button>`}).join("")}</div>`;
+}
+/* monthly dashboard */
+const TH_MF=["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+const ymLabel=ym=>{const[y,m]=ym.split("-");return TH_MF[+m-1]+" "+(+y+543)};
+const ymShift=(ym,d)=>{let[y,m]=ym.split("-").map(Number);m+=d;while(m<1){m+=12;y--}while(m>12){m-=12;y++}return y+"-"+String(m).padStart(2,"0")};
+function rangeRows(f,t){
+  return S.events.filter(e=>e.status!=="cancelled").map(e=>{
+    const ds=sortedDates(e),booth=isBooth(e),inR=ds.filter(d=>d>=f&&d<=t);
+    if(booth?!inR.length:!(ds[0]&&ds[0]>=f&&ds[0]<=t))return null;
+    const tg=booth?n(e.feas?.salesPerDay)*inR.length:eventTotal(e);
+    let a=null;const A=e.actual;
+    if(A?.byDay){const keys=booth?inR:[ds[0]];a=keys.reduce((s2,k)=>{const v=A.byDay[k];if(v){s2.gross+=n(v.gross);s2.net+=n(v.net);s2.cogs+=n(v.cogs);s2.np+=n(v.np);s2.days+=n(v.days)}return s2},{gross:0,net:0,cogs:0,np:0,days:0});if(!a.days)a=null}
+    else if(A&&n(A.days)&&ds.every(d=>d>=f&&d<=t))a=A;
+    return {e,booth,days:booth?inR:ds,tg,a};
+  }).filter(Boolean).sort((x,y)=>x.days[0].localeCompare(y.days[0]));
+}
+const monthEnd=ym=>{const[y,m]=ym.split("-").map(Number);return ym+"-"+String(new Date(Date.UTC(y,m,0)).getUTCDate()).padStart(2,"0")};
+function monthRows(ym){return rangeRows(ym+"-01",monthEnd(ym))}
+function monthTotals(rows){
+  return rows.reduce((t,r)=>{t.tg+=r.tg;if(r.booth){t.booth++;t.boothDays+=r.days.length}else t.cat++;
+    if(r.a){t.g+=n(r.a.gross);t.net+=n(r.a.net);t.cogs+=n(r.a.cogs);t.np+=n(r.a.np);t.done++}return t},{tg:0,g:0,net:0,cogs:0,np:0,booth:0,boothDays:0,cat:0,done:0});
+}
+function viewDash(){
+  const ym=S.dashMonth||(S.dashMonth=today().slice(0,7)),rows=monthRows(ym),t=monthTotals(rows);
+  const max=Math.max(1,...rows.map(r=>Math.max(r.tg,r.a?n(r.a.gross):0)));
+  const card=(l,v,sub,cls="")=>`<div class="panel" style="padding:14px 16px;display:flex;flex-direction:column;gap:2px;min-width:0"><div class="sectionlabel">${l}</div><div class="num ${cls}" style="font-size:1.45rem;font-weight:600">${v}</div><div class="muted" style="font-size:.82rem">${sub}</div></div>`;
+  return `<div class="row" style="justify-content:space-between">
+    <div><div class="sectionlabel">Dashboard รายเดือน</div><h1>${ymLabel(ym)}</h1></div>
+    <div class="row">
+      <button class="btn sec small" data-dm="-1" type="button" aria-label="เดือนก่อน">‹</button>
+      <input id="dashMonth" type="month" value="${ym}" style="width:auto">
+      <button class="btn sec small" data-dm="1" type="button" aria-label="เดือนถัดไป">›</button>
+    </div></div>
+  ${S.downloads?`<section class="panel" style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;padding:14px 16px">
+    <div style="flex:1 1 100%"><h3>Export PDF รายงานตามช่วงเวลา</h3></div>
+    <label>ตั้งแต่<input id="rpFrom" type="date" value="${esc(S.rpFrom||ym+"-01")}" style="width:auto"></label>
+    <label>ถึง<input id="rpTo" type="date" value="${esc(S.rpTo||monthEnd(ym))}" style="width:auto"></label>
+    <div class="row" style="gap:6px">${[["เดือนนี้",0],["3 เดือน",2],["ทั้งปี","y"]].map(([l,k])=>`<button class="btn sec small" data-rp="${k}" type="button">${l}</button>`).join("")}</div>
+    <button class="btn" id="pdfRange" type="button">Export PDF</button>
+  </section>`:""}
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(190px,1fr))">
+    ${card("จำนวนบูธ",fmt(t.booth)+" งาน",`${fmt(t.boothDays)} วันออกบูธ · Catering ${fmt(t.cat)} งาน`)}
+    ${card("ยอดขายจริง (รวม VAT)","฿"+fmt(t.g),t.tg?`Target ฿${fmt(t.tg)} · ${pct(t.g,t.tg)}`:"ยังไม่มี Target")}
+    ${card("กำไร/ขาดทุนสุทธิ","฿"+fmt(t.np),t.net?`${pct(t.np,t.net)} ของยอดขายสุทธิ ฿${fmt(t.net)}`:"ยังไม่มียอดขาย",t.np<0?"neg":t.np>0?"pos":"")}
+    ${card("กรอกยอดแล้ว",`${t.done}/${rows.length} งาน`,t.net?`Food cost ${pct(t.cogs,t.net)}`:"")}
+  </div>
+  ${rows.length?`<section class="panel" style="display:flex;flex-direction:column;gap:10px">
+    <div class="row" style="justify-content:space-between"><h2>ยอดขายเทียบ Target</h2><div class="row muted" style="font-size:.8rem;gap:12px">
+      <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--brand-2);vertical-align:middle"></span> ยอดขายจริง</span>
+      <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;border:1.5px dashed var(--muted);vertical-align:middle"></span> Target / มูลค่างาน</span></div></div>
+    ${rows.map(r=>{const g=r.a?n(r.a.gross):0;return `<div style="display:grid;grid-template-columns:minmax(0,180px) minmax(0,1fr) 92px;gap:10px;align-items:center;font-size:.86rem">
+      <div style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.e.customer)}">${esc(r.e.customer)}</div>
+      <div style="position:relative;height:18px;background:var(--soft);border-radius:4px">
+        <div style="position:absolute;inset:0 auto 0 0;width:${(r.tg/max*100).toFixed(2)}%;border:1.5px dashed var(--muted);border-radius:4px"></div>
+        <div style="position:absolute;inset:3px auto 3px 0;width:${(g/max*100).toFixed(2)}%;background:var(--brand-2);border-radius:3px"></div></div>
+      <div class="num" style="text-align:right">${r.a?fmt(g):"–"}</div></div>`}).join("")}
+  </section>
+  <div class="tbl-wrap"><table><thead><tr><th>วันที่ (ในเดือน)</th><th>งาน</th><th>รูปแบบ</th><th class="r">Target / มูลค่างาน</th><th class="r">ยอดขายจริง</th><th class="r">ยอดขายสุทธิ</th><th class="r">กำไร/ขาดทุน</th><th class="r">%</th></tr></thead><tbody>
+    ${rows.map(r=>`<tr data-open="${esc(r.e.id)}" style="cursor:pointer"><td>${datesText(r.days)}${r.days.length>1?` <span class="muted">(${r.days.length} วัน)</span>`:""}</td><td><b>${esc(r.e.customer)}</b><div class="muted" style="font-size:.8rem">${esc(r.e.venue)}</div></td><td>${esc(r.e.format)}</td>
+      <td class="r num">${fmt(r.tg)}</td><td class="r num">${r.a?fmt(r.a.gross):"–"}</td><td class="r num">${r.a?fmt(r.a.net):"–"}</td>
+      <td class="r num ${r.a?(n(r.a.np)<0?"neg":"pos"):""}">${r.a?fmt(r.a.np):"–"}</td><td class="r num">${r.a?pct(r.a.np,r.a.net):"–"}</td></tr>`).join("")}
+    <tr class="total"><td colspan="3">รวม ${rows.length} งาน</td><td class="r num">${fmt(t.tg)}</td><td class="r num">${fmt(t.g)}</td><td class="r num">${fmt(t.net)}</td><td class="r num ${t.np<0?"neg":"pos"}">${fmt(t.np)}</td><td class="r num">${pct(t.np,t.net)}</td></tr>
+  </tbody></table></div>
+  <p class="muted" style="margin:0;font-size:.8rem">งานหลายเดือนนับเฉพาะวันที่อยู่ในเดือนนี้ · Catering นับในเดือนของวันแรก · ไม่รวมงานที่ยกเลิก</p>`
+  :`<div class="empty">ไม่มีงานใน${ymLabel(ym)}</div>`}`;
+}
+function rangeSheet(f,t0){
+  const rows=rangeRows(f,t0),t=monthTotals(rows),now=new Date(),full=f.slice(0,7)===t0.slice(0,7)&&f.endsWith("-01")&&t0===monthEnd(f.slice(0,7));
+  const title=full?"รายงานประจำเดือน "+ymLabel(f.slice(0,7)):"รายงาน "+rangeLabel([f,t0]);
+  const td=(v,st="")=>`<td style="padding:6px 8px;border-top:1px solid var(--line);vertical-align:top;${st}">${v}</td>`,R="text-align:right;font-family:var(--f-num);white-space:nowrap;";
+  const th=(x,r)=>`<th style="background:var(--brand);color:var(--brand-ink);padding:8px;text-align:${r?"right":"left"};font-weight:600;white-space:nowrap">${x}</th>`;
+  const R2="text-align:right;font-family:var(--f-num);padding:8px;font-weight:700;background:var(--soft);white-space:nowrap";
+  return `<div style="background:var(--brand);color:var(--brand-ink);padding:18px 28px;display:flex;justify-content:space-between;align-items:flex-end">
+    <div><div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;opacity:.85">Booth &amp; Catering · ${esc(BRANDS[S.brand].name)}</div><div style="font-family:var(--f-display);font-size:22px;font-weight:700">${title}</div></div>
+    <div style="font-size:11px;opacity:.85">พิมพ์ ${now.getDate()} ${TH_M[now.getMonth()]} ${now.getFullYear()+543-2500}</div></div>
+  <div style="padding:20px 28px;display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;gap:12px">${[["จำนวนบูธ",`${fmt(t.booth)} งาน · ${fmt(t.boothDays)} วัน`],["Catering",`${fmt(t.cat)} งาน`],["Target / มูลค่างาน","฿"+fmt(t.tg)],["ยอดขายจริง (รวม VAT)","฿"+fmt(t.g)],["กำไร/ขาดทุนสุทธิ","฿"+fmt(t.np)+(t.net?` (${pct(t.np,t.net)})`:"")]].map(([l,v],i)=>`<div style="flex:1;border:1px solid var(--line);border-radius:10px;padding:10px 12px">
+      <div style="font-size:11px;color:var(--muted)">${l}</div><div style="font-family:var(--f-num);font-size:16px;font-weight:600;${i===4?`color:${t.np<0?"var(--bad)":"var(--good)"}`:""}">${v}</div></div>`).join("")}</div>
+    ${rows.length?`<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>${th("#",1)}${th("วันที่ (ในช่วง)")}${th("งาน / สถานที่")}${th("รูปแบบ")}${th("Target / มูลค่างาน",1)}${th("ยอดขายจริง",1)}${th("ยอดขายสุทธิ",1)}${th("กำไร/ขาดทุน",1)}${th("%",1)}</tr></thead><tbody>
+      ${rows.map((r,i)=>`<tr>${td(i+1,R)}${td(datesText(r.days)+(r.days.length>1?`<div style="color:var(--muted);font-size:11px">${r.days.length} วัน</div>`:""))}${td(`<b>${esc(r.e.customer)}</b><div style="color:var(--muted);font-size:11px">${esc(r.e.venue)}</div>`)}${td(esc(r.e.format))}
+        ${td(fmt(r.tg),R)}${td(r.a?fmt(r.a.gross):"–",R)}${td(r.a?fmt(r.a.net):"–",R)}${td(r.a?`<span style="color:${n(r.a.np)<0?"var(--bad)":"var(--good)"};font-weight:600">${fmt(r.a.np)}</span>`:"–",R)}${td(r.a?pct(r.a.np,r.a.net):"–",R)}</tr>`).join("")}
+      <tr><td colspan="4" style="padding:8px;font-weight:700;background:var(--soft)">รวม ${rows.length} งาน</td><td style="${R2}">${fmt(t.tg)}</td><td style="${R2}">${fmt(t.g)}</td><td style="${R2}">${fmt(t.net)}</td><td style="${R2};color:${t.np<0?"var(--bad)":"var(--good)"}">${fmt(t.np)}</td><td style="${R2}">${pct(t.np,t.net)}</td></tr></tbody></table>`
+      :`<div style="color:var(--muted)">ไม่มีงานในช่วงนี้</div>`}
+    <div style="font-size:11px;color:var(--muted)">ยอดขายจริง/กำไร มาจาก P&amp;L ที่บันทึกแล้ว · ยอดขายสุทธิถอด VAT 7% · งานบูธนับเฉพาะวันที่อยู่ในช่วง · Catering นับตามวันแรกของงาน · ไม่รวมงานที่ยกเลิก</div>
+  </div>`;
+}
+function summarySheet(){
+  const evs=[...S.events].sort((a,b)=>(sortedDates(a)[0]||"").localeCompare(sortedDates(b)[0]||""));
+  const tot={tg:0,g:0,net:0,np:0};const now=new Date();
+  const td=(v,st="")=>`<td style="padding:6px 8px;border-top:1px solid var(--line);vertical-align:top;${st}">${v}</td>`;
+  const rows=evs.map((e,i)=>{const ds=sortedDates(e),[,lab]=eventStatus(e),cx=e.status==="cancelled",a=e.actual&&n(e.actual.days)?e.actual:null,tg=eventTotal(e);
+    if(!cx){tot.tg+=tg;if(a){tot.g+=n(a.gross);tot.net+=n(a.net);tot.np+=n(a.np)}}
+    const R="text-align:right;font-family:var(--f-num);white-space:nowrap;";
+    return `<tr style="${cx?"color:var(--muted);text-decoration:line-through;":""}">${td(i+1,R)}${td(datesText(ds)+(ds.length>1?`<div style="color:var(--muted);font-size:11px">${ds.length} วัน</div>`:""))}
+      ${td(`<b>${esc(e.customer)}</b><div style="color:var(--muted);font-size:11px">${esc(e.venue)}</div>`)}${td(esc(e.format))}${td(lab)}
+      ${td(fmt(tg),R)}${td(a?fmt(a.gross):"–",R)}${td(a?fmt(a.net):"–",R)}
+      ${td(a?`<span style="color:${n(a.np)<0?"var(--bad)":"var(--good)"};font-weight:600">${fmt(a.np)}</span>`:"–",R)}${td(a?pct(a.np,a.net):"–",R)}</tr>`}).join("");
+  const th=(t,r)=>`<th style="background:var(--brand);color:var(--brand-ink);padding:8px;text-align:${r?"right":"left"};font-weight:600;white-space:nowrap">${t}</th>`;
+  const R2="text-align:right;font-family:var(--f-num);padding:8px;font-weight:700;background:var(--soft);white-space:nowrap";
+  return `<div style="background:var(--brand);color:var(--brand-ink);padding:18px 28px;display:flex;justify-content:space-between;align-items:flex-end">
+    <div><div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;opacity:.85">Booth &amp; Catering · ${esc(BRANDS[S.brand].name)}</div><div style="font-family:var(--f-display);font-size:22px;font-weight:700">สรุปงานทั้งหมด</div></div>
+    <div style="font-size:11px;opacity:.85">พิมพ์ ${now.getDate()} ${TH_M[now.getMonth()]} ${now.getFullYear()+543-2500} · ${evs.length} งาน</div></div>
+  <div style="padding:20px 28px;display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;gap:12px">${[["Target / มูลค่างาน",tot.tg],["ยอดขายจริง (รวม VAT)",tot.g],["ยอดขายสุทธิ",tot.net],["กำไร/ขาดทุนสุทธิ",tot.np]].map(([l,v],i)=>`<div style="flex:1;border:1px solid var(--line);border-radius:10px;padding:10px 12px">
+      <div style="font-size:11px;color:var(--muted)">${l}</div><div style="font-family:var(--f-num);font-size:18px;font-weight:600;${i===3?`color:${tot.np<0?"var(--bad)":"var(--good)"}`:""}">฿${fmt(v)}</div></div>`).join("")}</div>
+    <table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>${th("#",1)}${th("วันที่")}${th("งาน / สถานที่")}${th("รูปแบบ")}${th("สถานะ")}${th("Target / มูลค่างาน",1)}${th("ยอดขายจริง",1)}${th("ยอดขายสุทธิ",1)}${th("กำไร/ขาดทุน",1)}${th("%",1)}</tr></thead>
+    <tbody>${rows}<tr><td colspan="5" style="padding:8px;font-weight:700;background:var(--soft)">รวม (ไม่รวมงานที่ยกเลิก)</td><td style="${R2}">${fmt(tot.tg)}</td><td style="${R2}">${fmt(tot.g)}</td><td style="${R2}">${fmt(tot.net)}</td>
+      <td style="${R2};color:${tot.np<0?"var(--bad)":"var(--good)"}">${fmt(tot.np)}</td><td style="${R2}">${pct(tot.np,tot.net)}</td></tr></tbody></table>
+    <div style="font-size:11px;color:var(--muted)">ยอดขายจริง/กำไร มาจาก P&amp;L ที่บันทึกแล้ว · ยอดขายสุทธิถอด VAT 7% · งานที่ยังไม่กรอกยอดแสดง “–”</div>
+  </div>`;
+}
+/* payments & slips (Catering) */
+function viewPayments(e){
+  const pays=S.payments||[],total=eventTotal(e),paid=pays.reduce((a,p)=>a+n(p.amount),0),left=total-paid;
+  const pd=S.payDraft||{},canUp=S.isAdmin&&S.assets;
+  const form=!S.isAdmin?"":!S.assets?`<p class="notice info" style="margin:0">แนบสลิปได้เฉพาะทีมลงทะเบียนงาน</p>`
+    :S.payOpen?`<div class="panel" style="display:flex;flex-direction:column;gap:10px">
+      <label>ไฟล์สลิป (รูป หรือ PDF)<input id="p-file" type="file" accept="image/png,image/jpeg,image/webp,application/pdf"></label>
+      <p id="payErr" class="notice warn" hidden></p>
+      <div class="row" style="justify-content:flex-end"><button class="btn sec" id="payCancel" type="button">ยกเลิก</button><button class="btn" id="paySave" type="button">แนบสลิป</button></div>
+    </div>`:`<button class="btn sec small" id="payNew" type="button" style="align-self:flex-start">+ แนบสลิปโอนเงิน</button>`;
+  return `<section style="display:flex;flex-direction:column;gap:10px">
+    <h2>การชำระเงิน</h2>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
+      <div class="panel" style="padding:12px 14px"><div class="sectionlabel">ยอดงาน</div><div class="num" style="font-weight:600;font-size:1.15rem">฿${fmt(total,2)}</div></div>
+      <div class="panel" style="padding:12px 14px"><div class="sectionlabel">รับแล้ว</div><div class="num pos" style="font-weight:600;font-size:1.15rem">฿${fmt(paid,2)}</div></div>
+      <div class="panel" style="padding:12px 14px"><div class="sectionlabel">คงค้าง</div><div class="num ${left>0.005?"neg":""}" style="font-weight:600;font-size:1.15rem">฿${fmt(Math.max(left,0),2)}</div>
+        <span class="pill ${left<=0.005&&paid?"ok":paid?"live":"cx"}">${left<=0.005&&paid?"ชำระครบ":paid?"ชำระบางส่วน":"ยังไม่ชำระ"}</span></div>
+    </div>
+    ${form}
+    ${pays.length?`<div style="display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(260px,1fr))">${pays.map(p=>{
+      const src=slipSrc(p.assetId),pdf=p.contentType==="application/pdf";
+      return `<article class="panel" style="display:flex;gap:12px;padding:12px">
+        <button type="button" data-slip="${esc(p.id)}" style="flex:none;width:84px;height:110px;border:1px solid var(--line);border-radius:8px;background:var(--soft);padding:0;overflow:hidden" aria-label="ดูสลิป">
+          ${pdf?`<span class="muted" style="font-size:.8rem">PDF</span>`:`<img src="${esc(src)}" alt="สลิปโอนเงิน" style="width:100%;height:100%;object-fit:cover">`}
+        </button>
+        <div style="min-width:0;display:flex;flex-direction:column;gap:2px;font-size:.88rem">
+          <div class="num" style="font-weight:600;font-size:1.05rem">฿${fmt(p.amount,2)}</div>
+          <div>${dLabel(p.date)}${p.time?" · "+esc(p.time)+" น.":""} <span class="pill done">${esc(p.kind||"")}</span></div>
+          ${p.payer?`<div class="muted">จาก ${esc(p.payer)}${p.bank?" · "+esc(p.bank):""}</div>`:""}
+          ${p.ref?`<div class="muted num" style="overflow-wrap:anywhere;font-size:.78rem">Ref ${esc(p.ref)}</div>`:""}
+          ${pdf?`<a href="${esc(src)}" target="_blank" rel="noopener">เปิด PDF</a>`:""}
+          ${S.isAdmin?(S.payDel===p.id?`<div class="row" style="gap:6px;margin-top:4px"><button class="btn small" data-paydelyes="${esc(p.id)}" type="button">ยืนยันลบ</button><button class="btn sec small" data-paydelno type="button">ไม่ลบ</button></div>`
+            :`<button class="x" data-paydel="${esc(p.id)}" type="button" style="align-self:flex-start;font-size:.85rem">ลบสลิป</button>`):""}
+        </div></article>`}).join("")}</div>`:`<div class="empty" style="padding:20px">ยังไม่มีสลิปโอนเงิน</div>`}
+    ${S.slipView?`<div class="panel" style="display:flex;flex-direction:column;gap:8px;align-items:center">
+      <img src="${esc(slipSrc(S.slipView))}" alt="สลิปโอนเงิน" style="max-height:80vh;width:auto;border-radius:8px">
+      <button class="btn sec small" id="slipClose" type="button">ปิด</button></div>`:""}
+  </section>`;
+}
+function readPay(){}
+const UP_TYPES=["แจ้งร้านค้า","ซัพพลายเออร์","เปลี่ยนแปลงจากลูกค้า","โลจิสติกส์","อื่น ๆ"];
+function viewUpdates(e){
+  const ups=S.updates||[],ud=S.upDraft||{};
+  const form=S.isAdmin?`<div class="panel" style="display:flex;flex-direction:column;gap:8px;padding:12px">
+    <textarea id="u-body" placeholder="พิมพ์อัปเดต หรือวางข้อความที่ได้รับ…" style="min-height:90px">${esc(ud.body||"")}</textarea>
+    <div class="row" style="justify-content:flex-end"><button class="btn" id="upSave" type="button">โพสต์</button></div></div>`:"";
+  const t=today();
+  return `<section style="display:flex;flex-direction:column;gap:10px">
+    <div class="row" style="justify-content:space-between"><h2>อัปเดตหลังคอนเฟิร์ม <span class="num muted">${ups.length}</span></h2></div>
+    ${form}
+    ${ups.length?`<div style="display:flex;flex-direction:column;gap:10px">${ups.map(u=>{
+      const over=u.due&&u.due<t;
+      return `<article class="panel" style="display:flex;flex-direction:column;gap:6px;padding:14px 16px">
+        <div class="row" style="justify-content:space-between;gap:8px">
+          <div class="row" style="gap:8px"><b data-uname="${esc(u.by||"")}">…</b>${u.title?`<span class="muted">· ${esc(u.title)}</span>`:""}</div>
+          <div class="row" style="gap:8px">${u.due?`<span class="pill ${over?"cx":"live"}">ภายใน ${dLabel(u.due)}</span>`:""}
+            <span class="muted" style="font-size:.8rem">${esc(new Date(u.at).toLocaleString("th-TH",{dateStyle:"medium",timeStyle:"short"}))}</span>
+            ${S.isAdmin?(S.upDel===u.id?`<button class="btn small" data-updelyes="${esc(u.id)}" type="button">ยืนยันลบ</button><button class="btn sec small" data-updelno type="button">ไม่ลบ</button>`:`<button class="x" data-updel="${esc(u.id)}" type="button" aria-label="ลบอัปเดต">×</button>`):""}</div>
+        </div>
+        <div style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(u.body)}</div>
+      </article>`}).join("")}</div>`:`<div class="empty" style="padding:20px">ยังไม่มีอัปเดต${S.isAdmin?" · ใช้บันทึกข่าวแจ้งร้านค้า ซัพพลายเออร์ หรือการเปลี่ยนแปลงหลังยืนยันงาน":""}</div>`}
+  </section>`;
+}
+function readUp(){if(!$("#u-body"))return;S.upDraft={body:$("#u-body").value}}
+function dayPL(e,d){
+  const t=today(),whole=d==="event",ds0=sortedDates(e)[0]||"",open=whole?(!!ds0&&ds0<=t):d<=t,canEdit=S.canSales&&open,lbl=whole?"ทั้งงาน":dLabel(d);
+  if(!S.draft||S.draft._day!==d||S.draft._ev!==e.id){
+    const src=S.pl[d]?JSON.parse(JSON.stringify(S.pl[d])):defaultPL(e);
+    S.draft={...src,_day:d,_ev:e.id,_saved:!!S.pl[d]};
+  }
+  const pl=S.draft,booth=isBooth(e),eff=effPL(e,d,pl),c=calcPL(e,eff),dis=canEdit?"":"disabled";
+  const what=booth?"ยอดขายและค่าใช้จ่าย":"ค่าใช้จ่าย";
+  const notice=!open?`<div class="notice info">กรอก${what}ได้ตั้งแต่วันงาน (${whole?dLabel(ds0):dLabel(d)}) ตัวเลขด้านล่างเป็นค่าตั้งต้น</div>`
+    :!S.canSales?`<div class="notice info">ดูอย่างเดียว เฉพาะทีมกรอกยอดขายที่บันทึกได้</div>`
+    :!pl._saved?`<div class="notice warn">ยังไม่ได้บันทึกวันนี้ กรอก${what}จริงแล้วกดบันทึก</div>`:"";
+  const salesBlock=booth?null:`<div><div class="sectionlabel" style="margin-bottom:6px">ยอดขายตามใบคอนเฟิร์ม · ขายขาด (ไม่ต้องกรอก)</div>
+    <div class="tbl-wrap"><table><thead><tr><th>เมนู</th><th class="r">ราคา</th><th class="r">จำนวน</th><th class="r">ยอดขาย</th><th class="r">ต้นทุน/หน่วย</th></tr></thead><tbody>
+    ${eff.sales.map(s=>{const cost=menuCost(menuFor(s));return `<tr><td>${esc(s.name)}</td><td class="r num">${fmt(s.price,2)}</td><td class="r num">${fmt(s.qty)}</td><td class="r num">${fmt(n(s.price)*n(s.qty),2)}</td><td class="r num">${cost?fmt(cost,2):`<span class="flag">ไม่มี BOM</span>`}</td></tr>`}).join("")}
+    ${eff.cateringFee?`<tr><td>ค่าบริการ Catering</td><td></td><td></td><td class="r num">${fmt(eff.cateringFee,2)}</td><td></td></tr>`:""}
+    </tbody></table></div></div>`;
+  return `${notice}<div class="pl">
+  <div class="panel" id="plForm" style="display:flex;flex-direction:column;gap:14px">
+    ${salesBlock??(()=>{const bm=boothMenus();if(!bm.length)return `<div class="empty">ยังไม่มีเมนูบูธในระบบ</div>`;
+      const lines=(pl.sales||[]).filter(x=>n(x.qty)>0).slice().sort((x,y)=>String(x.name).localeCompare(String(y.name),"th"));pl.sales=lines;
+      const qOf=id=>{const l=lines.find(x=>x.menuId===id);return l?n(l.qty):0};
+      const tq=lines.reduce((a,x)=>a+n(x.qty),0),ta=lines.reduce((a,x)=>a+n(x.qty)*n(x.price),0);
+      return `<div><div class="sectionlabel" style="margin-bottom:8px">คีย์ยอดขาย${canEdit?" · แตะเมนูเพื่อเพิ่ม":""}</div>
+      <div class="pos-grid">${bm.map(m=>{const q=qOf(m.id);return `<button class="pos-tile ${q?"on":""}" type="button" data-pos-add="${esc(m.id)}" ${dis} aria-label="${esc(m.name)} ${fmt(m.price)} บาท">
+        <span>${esc(m.name)}</span><span class="pr">฿${fmt(m.price)}</span>${q?`<span class="qb">${fmt(q)}</span>`:""}</button>`}).join("")}</div></div>
+      <div><div class="sectionlabel" style="margin-bottom:6px">รายการขาย</div>
+      <div class="ticket" id="posTicket">${lines.length?lines.map((l,i)=>`<div class="tr"><div style="min-width:0"><div style="overflow-wrap:anywhere">${esc(l.name)}</div><div class="muted num" style="font-size:.8rem">฿${fmt(l.price)}</div></div>
+        <div class="stepper">${canEdit?`<button type="button" data-pos-dec="${esc(l.menuId)}" aria-label="ลด">−</button>`:""}<input id="pl-tq-${i}" type="number" min="0" inputmode="numeric" value="${fmt0(l.qty)}" ${dis} aria-label="จำนวน ${esc(l.name)}">${canEdit?`<button type="button" data-pos-add="${esc(l.menuId)}" aria-label="เพิ่ม">+</button>`:""}</div>
+        <div class="r num">${fmt(n(l.qty)*n(l.price))}</div></div>`).join(""):`<div class="tr"><span class="muted">ยังไม่มีรายการ</span><span></span><span></span></div>`}
+        <div class="tr tot"><span>รวม ${fmt(tq)} รายการ</span><span></span><span class="r num">${fmt(ta)}</span></div></div></div>`})()}
+    <div><div class="sectionlabel" style="margin-bottom:6px">ค่าใช้จ่ายอื่น</div>
+    <div style="display:flex;flex-direction:column;gap:6px">${pl.otherCosts.map((o,i)=>`<div class="row" style="flex-wrap:nowrap">
+      <input id="pl-oc-l-${i}" data-oc="${i}" data-k="label" value="${esc(o.label)}" ${dis}>
+      <input id="pl-oc-a-${i}" type="number" data-oc="${i}" data-k="amount" value="${esc(o.amount)}" style="width:120px;flex:none;text-align:right" ${dis}>
+      ${canEdit?`<button class="x" type="button" data-deloc="${i}" aria-label="ลบ">×</button>`:""}</div>`).join("")}</div>
+    ${canEdit?`<button class="btn sec small" type="button" id="addOc" style="margin-top:8px">+ เพิ่มค่าใช้จ่าย</button>`:""}</div>
+    ${canEdit?`<div class="row" style="justify-content:flex-end"><button class="btn" id="savePL" type="button">บันทึก P&amp;L ${lbl}</button></div>`:""}
+  </div>
+  <div class="panel stmt" aria-live="polite">
+    <div class="sectionlabel" style="margin-bottom:6px">งบกำไรขาดทุน · ${lbl}</div>
+    <div class="l"><span>ยอดขายรวม${e.vatIncluded!==false?" (รวม VAT)":""}</span><span class="num">${fmt(c.gross,2)}</span></div>
+    ${e.vatIncluded!==false?`<div class="l sub"><span>หัก VAT 7%</span><span class="num">(${fmt(c.vat,2)})</span></div>`:""}
+    <div class="l key"><span>ยอดขายสุทธิ</span><span class="num">${fmt(c.net,2)}</span></div>
+    <div class="l"><span>ต้นทุนอาหาร (COGS ตาม BOM)</span><span class="num">(${fmt(c.cogs,2)})</span></div>
+    <div class="l sub"><span>Food cost %</span><span class="num">${pct(c.cogs,c.net)}</span></div>
+    <div class="l key"><span>กำไรขั้นต้น (GP)</span><span class="num">${fmt(c.gp,2)}</span></div>
+    ${eff.otherCosts.filter(o=>n(o.amount)).map(o=>`<div class="l sub"><span>${esc(o.label)}</span><span class="num">(${fmt(o.amount,2)})</span></div>`).join("")}
+    <div class="l"><span>ค่าใช้จ่ายอื่นรวม</span><span class="num">(${fmt(c.other,2)})</span></div>
+    <div class="l final"><span>กำไรสุทธิ</span><span class="num ${c.np<0?"neg":"pos"}">${fmt(c.np,2)} <small class="muted">${pct(c.np,c.net)}</small></span></div>
+    ${c.missing.length?`<p class="flag" style="margin:10px 0 0">COGS ยังไม่ครบ: ${c.missing.length>3?c.missing.length+" เมนู":c.missing.map(esc).join(", ")} ยังไม่มีต้นทุนใน BOM</p>`:""}
+  </div></div>`;
+}
+function readPL(){
+  const p=S.draft;if(!p||!$("#plForm"))return;
+  if($("#posTicket"))p.sales=(p.sales||[]).map((l,i)=>({...l,qty:$("#pl-tq-"+i)?n($("#pl-tq-"+i).value):n(l.qty)})).filter(x=>x.qty>0);
+  p.otherCosts=p.otherCosts.map((o,i)=>({label:$("#pl-oc-l-"+i).value,amount:n($("#pl-oc-a-"+i).value)}));
+}
+
+/* Booth fixed-cost settings panel */
+function fcPanel(atEnd){
+  const f=fcNow(),dis=S.isAdmin?"":"disabled";
+  const html=`<section class="panel" style="display:flex;flex-direction:column;gap:10px">
+    <div class="row" style="justify-content:space-between"><div><h2>Fixed cost Booth</h2><p class="muted" style="margin:2px 0 0;font-size:.85rem">ใช้คำนวณ Feasibility ของงาน Booth ในแบรนด์ ${esc(BRANDS[S.brand].name)}${S.fc?"":" · ยังเป็นค่าตั้งต้นจากไฟล์ Fixed Cost Booth"}</p></div>
+      ${S.isAdmin?`<button class="btn small" id="saveFc" type="button">บันทึก Fixed cost</button>`:""}</div>
+    <div class="tbl-wrap"><table><thead><tr><th>รายการ</th><th class="r">ค่า</th><th>หน่วย</th><th>ที่มา</th></tr></thead><tbody>
+    ${FC_ROWS.map(([k,l,u,src])=>`<tr><td>${l}</td><td class="r"><input id="fc-${k}" type="number" step="any" value="${k==="foodPct"?+(n(f[k])*100).toFixed(4):esc(f[k])}" style="width:110px;text-align:right" ${dis}></td><td class="muted">${u}</td><td class="muted">${src}</td></tr>`).join("")}
+    <tr class="total"><td>ค่า OT ต่อชั่วโมง (คำนวณ)</td><td class="r num">${fmt(n(f.wage)/8*n(f.otRate),3)}</td><td class="muted">บาท</td><td class="muted">ค่าแรงต่อวัน ÷ 8 ชม. × อัตรา OT</td></tr>
+    </tbody></table></div></section>`;
+  return html;
+}
+/* menus & BOM */
+function viewMenus(){
+  const head=`<div class="row" style="justify-content:space-between"><div><h1>เมนู &amp; BOM</h1><p class="muted" style="margin:2px 0 0">ต้นทุนต่อหน่วยคิดจาก BOM ใช้คำนวณ COGS ใน P&amp;L (ใส่ต้นทุนวัตถุดิบไม่รวม VAT)</p></div>
+    ${S.isAdmin&&S.editMenu===null?`<button class="btn" id="newMenu" type="button">+ เพิ่มเมนู</button>`:""}</div>`;
+  if(S.editMenu!==null)return head+menuEditor();
+  if(!S.mnReady)return head+`<div class="empty">กำลังโหลดเมนู…</div>`;
+  if(!S.menus.length)return head+`<div class="empty">ยังไม่มีเมนู${S.isAdmin?"<br>เพิ่มเมนูพร้อม BOM เพื่อให้ P&amp;L คำนวณต้นทุนได้":""}</div>`+fcPanel();
+  return head+fcPanel(true)+`<div class="tbl-wrap"><table><thead><tr><th>เมนู / ชุด</th><th class="r">ราคาขาย</th><th class="r">ราคาไม่รวม VAT</th><th class="r">ต้นทุน BOM</th><th class="r">Food cost %</th><th class="r">วัตถุดิบ</th><th></th></tr></thead><tbody>
+  ${[...S.menus].sort((a,b)=>a.name.localeCompare(b.name,"th")).map(m=>{const c=menuCost(m),ex=n(m.price)/(1+VAT);return `<tr>
+    <td><b>${esc(m.name)}</b></td><td class="r num">${fmt(m.price,2)}</td><td class="r num">${fmt(ex,2)}</td>
+    <td class="r num">${c?fmt(c,2):`<span class="flag">ยังไม่ใส่ต้นทุน</span>`}</td><td class="r num">${c?pct(c,ex):"–"}</td>
+    <td class="r num">${(m.bom||[]).length}</td><td><button class="btn sec small" data-editmenu="${esc(m.id)}" type="button">${S.isAdmin?"แก้ไข":"ดู"}</button></td></tr>`}).join("")}
+  </tbody></table></div>`;
+}
+function menuEditor(){
+  if(!S.draft){const src=S.editMenu==="new"?{name:"",price:"",bom:[{ingredient:"",qty:1,unit:"",unitCost:""}]}:S.menus.find(m=>m.id===S.editMenu);
+    S.draft=JSON.parse(JSON.stringify(src||{name:"",price:"",bom:[]}));if(!S.draft.bom)S.draft.bom=[]}
+  const m=S.draft,c=menuCost(m),ex=n(m.price)/(1+VAT),dis=S.isAdmin?"":"disabled",confirmDel=S.confirmDel==="menu";
+  return `<div class="panel" style="display:flex;flex-direction:column;gap:14px">
+    <div class="grid"><label>ชื่อเมนู / ชุด<input id="m-name" value="${esc(m.name)}" ${dis}></label>
+    <label>ราคาขาย (รวม VAT)<input id="m-price" type="number" value="${esc(m.price)}" ${dis}></label></div>
+    <div><div class="sectionlabel" style="margin-bottom:6px">BOM ต่อ 1 หน่วยขาย</div>
+    <div class="tbl-wrap"><table class="line-tbl"><thead><tr><th>วัตถุดิบ / ส่วนประกอบ</th><th class="r">ปริมาณ</th><th>หน่วย</th><th class="r">ต้นทุน/หน่วย</th><th class="r">ต้นทุน</th><th></th></tr></thead><tbody>
+    ${m.bom.map((b,i)=>`<tr><td><input id="m-b-i-${i}" value="${esc(b.ingredient)}" ${dis}></td>
+      <td><input id="m-b-q-${i}" type="number" step="any" value="${esc(b.qty)}" style="width:80px;text-align:right" ${dis}></td>
+      <td><input id="m-b-u-${i}" value="${esc(b.unit)}" style="width:80px" placeholder="g, ชิ้น" ${dis}></td>
+      <td><input id="m-b-c-${i}" type="number" step="any" value="${esc(b.unitCost)}" style="width:100px;text-align:right" ${dis}></td>
+      <td class="r num">${fmt(n(b.qty)*n(b.unitCost),2)}</td>
+      <td>${S.isAdmin?`<button class="x" type="button" data-delbom="${i}" aria-label="ลบ">×</button>`:""}</td></tr>`).join("")}
+    <tr class="total"><td colspan="4">ต้นทุนรวมต่อหน่วย · Food cost ${pct(c,ex)} ของราคาไม่รวม VAT</td><td class="r num">${fmt(c,2)}</td><td></td></tr>
+    </tbody></table></div>
+    ${S.isAdmin?`<button class="btn sec small" type="button" id="addBom" style="margin-top:8px">+ เพิ่มวัตถุดิบ</button>`:""}</div>
+    ${confirmDel?`<div class="confirm">ลบเมนูนี้? P&amp;L ที่อ้างถึงจะไม่มีต้นทุน <button class="btn small" id="mDelYes" type="button">ลบเลย</button><button class="btn sec small" id="mDelNo" type="button">ไม่ลบ</button></div>`:""}
+    <div class="row" style="justify-content:space-between">
+      <div>${S.isAdmin&&S.editMenu!=="new"?`<button class="btn sec small" id="delMenu" type="button">ลบเมนู</button>`:""}</div>
+      <div class="row"><button class="btn sec" id="closeMenu" type="button">${S.isAdmin?"ยกเลิก":"ปิด"}</button>${S.isAdmin?`<button class="btn" id="saveMenu" type="button">บันทึกเมนู</button>`:""}</div>
+    </div></div>`;
+}
+function readMenu(){
+  const m=S.draft;if(!m||!$("#m-name"))return;
+  m.name=$("#m-name").value.trim();m.price=$("#m-price").value;
+  m.bom=m.bom.map((_,i)=>({ingredient:$("#m-b-i-"+i).value.trim(),qty:n($("#m-b-q-"+i).value),unit:$("#m-b-u-"+i).value.trim(),unitCost:n($("#m-b-c-"+i).value)}));
+}
+
+/* users & access (owner only) */
+const ROLE_LABEL={sysadmin:"Admin (เห็นเมนู&BOM / ผู้ใช้&สิทธิ์)",register:"ทีมลงทะเบียนงาน",sales:"ทีมกรอกยอดขาย",admin:"ทั้งสองทีม",viewer:"ดูอย่างเดียว"};
+function viewUsers(){
+  const ids=Object.keys(S.members);
+  return `<div><h1>ผู้ใช้ &amp; สิทธิ์</h1><p class="muted" style="margin:2px 0 0">ผู้ใช้เห็นเฉพาะแบรนด์ที่ได้รับสิทธิ์ ตอนเข้าระบบจะเข้าแบรนด์ของตัวเองทันที</p></div>
+  <div class="panel" style="display:flex;flex-direction:column;gap:8px">
+    <label>เพิ่มผู้ใช้ (ค้นหาชื่อหรืออีเมลของคนที่สมัครแล้ว)<input id="uSearch" autocomplete="off" placeholder="พิมพ์ชื่อ…"></label>
+    <div id="uResults" style="display:flex;flex-direction:column;gap:4px"></div>
+  </div>
+  ${ids.length?`<div class="tbl-wrap"><table><thead><tr><th>ผู้ใช้</th>${Object.keys(BRANDS).map(b=>`<th>${esc(BRANDS[b].name)}</th>`).join("")}<th>สิทธิ์</th><th></th></tr></thead><tbody>
+  ${ids.map(id=>{const m=S.members[id];return `<tr><td><span data-uname="${esc(id)}">…</span></td>
+    ${Object.keys(BRANDS).map(b=>`<td><input type="checkbox" id="ub-${esc(id)}-${b}" data-ub="${esc(id)}" data-brand="${b}" ${(m.brands||[]).includes(b)?"checked":""} style="width:auto" aria-label="${esc(BRANDS[b].name)}"></td>`).join("")}
+    <td><select id="ur-${esc(id)}" data-ur="${esc(id)}">${Object.entries(ROLE_LABEL).map(([k,l])=>`<option value="${k}" ${m.role===k?"selected":""}>${l}</option>`).join("")}</select></td>
+    <td>${S.confirmDel==="u:"+id?`<button class="btn small" data-urmyes="${esc(id)}" type="button">ยืนยันลบ</button>`:`<button class="x" data-urm="${esc(id)}" type="button" aria-label="ลบผู้ใช้">×</button>`}</td></tr>`}).join("")}
+  </tbody></table></div>`:`<div class="empty">ยังไม่มีผู้ใช้ เพิ่มจากช่องค้นหาด้านบน</div>`}
+  <div class="notice info"><b>Admin</b>: ทำได้ทุกอย่าง และเห็นหมวด เมนู &amp; BOM กับ ผู้ใช้ &amp; สิทธิ์ · <b>ทีมลงทะเบียนงาน</b>: ลงทะเบียน/แก้ไขงาน โพสต์อัปเดต แนบสลิป · <b>ทีมกรอกยอดขาย</b>: กรอกยอดขายและค่าใช้จ่ายใน P&amp;L · <b>ดูอย่างเดียว</b>: ดูข้อมูลได้อย่างเดียว · ผู้ใช้ใหม่ต้องกด “สมัครใช้งาน” ในหน้าเข้าสู่ระบบก่อน แล้วจึงค้นหาชื่อเพื่อกำหนดสิทธิ์ที่นี่ได้</div>`;
+}
+async function saveMembers(next,msg){
+  if(await write(()=>S.db.doc("access/members").set({members:next,updatedAt:new Date().toISOString()}),msg)){S.members=next;S.confirmDel=null;render()}
+}
+async function fillNames(){
+  const els=[...document.querySelectorAll("[data-uname]")];if(!els.length||!S.user)return;
+  const ps=await S.user.profiles(els.map(e=>e.dataset.uname));
+  els.forEach(e=>{const id=e.dataset.uname,p=ps[id];e.textContent=!id?"ระบบ":id===S.uid?"คุณ":(p&&p.name)||"ผู้ใช้ (ไม่ทราบชื่อ)"});
+}
+
+/* ---------- bindings ---------- */
+function on(sel,evn,fn){document.querySelectorAll(sel).forEach(el=>el.addEventListener(evn,fn))}
+function bind(){
+  const base="b/"+S.brand;
+  on("[data-filter]","click",ev=>{S.filter=ev.currentTarget.dataset.filter;render()});
+  on("[data-open]","click",ev=>go("event",{id:ev.currentTarget.dataset.open}));
+  if(S.view==="notif"){
+    fillNames();
+    if(S.notifPrevSeen===undefined)S.notifPrevSeen=seenAt(S.uid);
+    markSeen();
+    on("[data-act]","click",ev=>{const a=(S.acts||[]).find(x=>x.id===ev.currentTarget.dataset.act);if(a&&a.eventId&&S.events.some(e=>e.id===a.eventId))go("event",{id:a.eventId,tab:a.type==="pl"?(isBooth(S.events.find(e=>e.id===a.eventId))?"sales":"pl"):"info"})});
+  }
+  if(S.view==="dash"){
+    on("[data-dm]","click",ev=>{S.dashMonth=ymShift(S.dashMonth,+ev.currentTarget.dataset.dm);S.rpFrom=S.rpTo=null;render()});
+    if($("#dashMonth"))$("#dashMonth").addEventListener("change",ev=>{if(/^\d{4}-\d{2}$/.test(ev.target.value)){S.dashMonth=ev.target.value;S.rpFrom=S.rpTo=null;render()}});
+    on("#rpFrom,#rpTo","change",()=>{S.rpFrom=$("#rpFrom").value;S.rpTo=$("#rpTo").value});
+    on("[data-rp]","click",ev=>{const k=ev.currentTarget.dataset.rp,ym=S.dashMonth;
+      if(k==="y"){S.rpFrom=ym.slice(0,4)+"-01-01";S.rpTo=ym.slice(0,4)+"-12-31"}else{S.rpFrom=ymShift(ym,-n(k))+"-01";S.rpTo=monthEnd(ym)}render()});
+    if($("#pdfRange"))$("#pdfRange").onclick=ev=>{const f=$("#rpFrom").value,t=$("#rpTo").value;
+      if(!f||!t){toast("เลือกวันที่ให้ครบ");return}if(t<f){toast("วันที่สิ้นสุดต้องไม่ก่อนวันเริ่ม");return}
+      S.rpFrom=f;S.rpTo=t;htmlToPdf(rangeSheet(f,t),`รายงาน_${safeName(BRANDS[S.brand].name)}_${f}_ถึง_${t}.pdf`,ev.currentTarget,"Export PDF",true)};
+  }
+  if($("#pdfAll"))$("#pdfAll").onclick=ev=>{const d=new Date();htmlToPdf(summarySheet(),`สรุปงาน_${safeName(BRANDS[S.brand].name)}_${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}.pdf`,ev.currentTarget,"Export PDF สรุปงาน",true)};
+
+  /* form */
+  if(S.view==="new"&&$("#evForm")){
+    const rr=()=>{readForm();render()};
+    on("#evForm input[type=number],#evForm input[type=checkbox]","change",rr);
+    on("[data-pk][data-k=name]","change",ev=>{readForm();const i=+ev.target.dataset.pk,p=S.draft.packages[i],m=S.menus.find(x=>x.name===p.name);
+      if(m){p.menuId=m.id;if(!n(p.price))p.price=m.price}else p.menuId="";render()});
+    $("#f-format").addEventListener("change",rr);
+    if($("#f-slip"))$("#f-slip").addEventListener("change",ev=>{const f=ev.target.files[0];if(!f)return;
+      if(f.size>20*1024*1024){toast("ไฟล์ใหญ่เกิน 20 MB");ev.target.value="";return}readForm();S.slipFile=f;render()});
+    if($("#slipRemove"))$("#slipRemove").onclick=()=>{readForm();S.slipFile=null;render()};
+    $("#addDate").onclick=()=>{readForm();const a=$("#f-d-from").value,b=$("#f-d-to").value||a;
+      if(!a){toast("เลือกวันที่เริ่มก่อน");return}if(b<a){toast("วันที่สิ้นสุดต้องไม่ก่อนวันเริ่ม");return}
+      const add=[];for(let d=new Date(a+"T00:00:00Z");d.toISOString().slice(0,10)<=b;d.setUTCDate(d.getUTCDate()+1))add.push(d.toISOString().slice(0,10));
+      if(add.length>366){toast("ช่วงวันที่ยาวเกิน 1 ปี");return}
+      S.draft.dates=[...new Set([...S.draft.dates.filter(Boolean),...add])].sort();render()};
+    on("[data-delrange]","click",ev=>{readForm();const r=dateRanges(S.draft.dates)[+ev.currentTarget.dataset.delrange];
+      S.draft.dates=S.draft.dates.filter(d=>d&&(d<r[0]||d>r[1]));render()});
+    $("#addPk").onclick=()=>{readForm();S.draft.packages.push({menuId:"",name:"",price:"",qty:""});render()};
+    on("[data-delpk]","click",ev=>{readForm();S.draft.packages.splice(+ev.currentTarget.dataset.delpk,1);render()});
+    $("#cancelForm").onclick=()=>S.editEvent?go("event",{id:S.editEvent.id}):go("events");
+    $("#evForm").addEventListener("submit",async ev=>{
+      ev.preventDefault();readForm();const e=S.draft,err=$("#formErr");
+      const dates=e.dates.filter(Boolean);
+      if(e.mapUrl&&!safeUrl(e.mapUrl)){err.textContent="ลิงก์ Google Maps ต้องขึ้นต้นด้วย https://";err.hidden=false;return}
+      const fe=e.feas||{},booth=isBooth(e);
+      const miss=[!e.customer&&"ลูกค้า/ผู้ติดต่อ",!e.venue&&"สถานที่",!dates.length&&"วันที่จัดงาน",
+        !booth&&!e.packages.some(p=>p.name&&n(p.qty))&&"เมนูอย่างน้อย 1 รายการ",
+        booth&&!(n(fe.salesPerDay)>0)&&"Target sales",booth&&String(fe.rent??"")===""&&"ค่าเช่าบูธ",booth&&!(n(fe.staff)>0)&&"จำนวนพนักงาน"].filter(Boolean);
+      if(miss.length){err.textContent="กรอกให้ครบ: "+miss.join(", ");err.hidden=false;return}
+      const body={paid:n(S.editEvent?.paid),...(S.editEvent?.actual?{actual:S.editEvent.actual}:{}),format:e.format,customer:e.customer,phone:e.phone,dates:[...new Set(dates)].sort(),serveFrom:e.serveFrom,serveTo:e.serveTo,
+        venue:e.venue,mapUrl:e.mapUrl||"",guests:isBooth(e)?0:n(e.guests),packages:e.packages.filter(p=>p.name).map(p=>({menuId:p.menuId||(S.menus.find(m=>m.name===p.name)||{}).id||"",name:p.name,price:n(p.price),qty:n(p.qty)})),
+        distributionNote:booth?"":e.distributionNote,cateringFeePerDay:booth?0:n(e.cateringFeePerDay),
+        feas:booth?{salesPerDay:n(fe.salesPerDay),rent:n(fe.rent),staff:n(fe.staff),stay:!!fe.stay}:null,feasFc:booth?fcNow():null,vatIncluded:e.vatIncluded,status:e.status,note:e.note,
+        createdBy:S.editEvent?.createdBy||S.uid||"",createdAt:S.editEvent?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
+      const ref=S.editEvent?S.db.doc(base+"/events/"+S.editEvent.id):S.db.collection(base+"/events").doc();
+      const sub=ev.submitter||$("#evForm button[type=submit]");if(sub){sub.disabled=true;sub.textContent="กำลังบันทึก…"}
+      if(await write(()=>ref.set(body),S.editEvent?"บันทึกการแก้ไขแล้ว":"ยืนยันงานแล้ว")){
+        logAct(S.editEvent?"edit":"new",{id:ref.id,...body},`${body.format} · ${datesText(body.dates)} · ${body.venue}`);
+        S.events=S.events.filter(x=>x.id!==ref.id).concat([{id:ref.id,...body}]);
+        const f=!booth&&S.slipFile,sl={amount:Math.max(eventTotal(body)-n(body.paid),0),date:today(),time:"",payer:"",bank:"",ref:"",kind:""};
+        if(f&&S.assets){try{
+          const up=await S.assets.upload(f,f.type?undefined:{type:/\.pdf$/i.test(f.name)?"application/pdf":"image/jpeg"});
+          const pay={assetId:up.id,contentType:up.contentType,amount:n(sl.amount),date:sl.date,time:sl.time||"",payer:sl.payer||"",bank:sl.bank||"",ref:sl.ref||"",kind:sl.kind||"",by:S.uid||"",at:new Date().toISOString()};
+          await S.db.collection(base+"/events/"+ref.id+"/payments").doc().set(pay);
+          await S.db.doc(base+"/events/"+ref.id).update({paid:n(body.paid)+n(sl.amount)});logAct("slip",{id:ref.id,...body},`฿${fmt(sl.amount,2)} · ${sl.kind||""}`);toast("ยืนยันงานและแนบสลิปแล้ว");
+        }catch(x){toast("บันทึกงานแล้ว แต่แนบสลิปไม่สำเร็จ แนบใหม่ได้ในหน้างาน")}}
+        S.slipFile=null;go("event",{id:ref.id})}
+      else if(sub){sub.disabled=false;sub.textContent=S.editEvent?"บันทึกการแก้ไข":"ยืนยันงาน"}
+    });
+  }
+
+  /* event sheet */
+  if(S.view==="event"){
+    const e=S.events.find(x=>x.id===S.eventId);
+    fillNames();
+    on("[data-evtab]","click",ev=>{rerender();S.evTab=ev.currentTarget.dataset.evtab;render();window.scrollTo(0,0)});
+    on("[data-day]","click",ev=>{S.draft=null;S.day=ev.currentTarget.dataset.day;render()});
+    const syncPaid=async()=>{const paid=(S.payments||[]).reduce((a,p)=>a+n(p.amount),0);
+      try{await S.db.doc(base+"/events/"+e.id).update({paid})}catch(_){}};
+    if($("#payNew"))$("#payNew").onclick=()=>{S.payOpen=true;S.payDraft=null;rerender()};
+    if($("#payCancel"))$("#payCancel").onclick=()=>{S.payOpen=false;S.payDraft=null;rerender()};
+    on("[data-slip]","click",ev=>{const p=S.payments.find(x=>x.id===ev.currentTarget.dataset.slip);if(!p)return;
+      if(p.contentType==="application/pdf")return;S.slipView=S.slipView===p.assetId?null:p.assetId;rerender()});
+    if($("#slipClose"))$("#slipClose").onclick=()=>{S.slipView=null;rerender()};
+    if($("#paySave"))$("#paySave").onclick=async ev=>{
+      const f=$("#p-file").files[0],err=$("#payErr");
+      if(!f){err.textContent="เลือกไฟล์สลิปก่อน";err.hidden=false;return}
+      const left=Math.max(eventTotal(e)-(S.payments||[]).reduce((a,p)=>a+n(p.amount),0),0),pd={amount:left,date:today(),time:"",payer:"",bank:"",ref:"",kind:""};
+      if(f.size>20*1024*1024){err.textContent="ไฟล์ใหญ่เกิน 20 MB";err.hidden=false;return}
+      const btn=ev.currentTarget;btn.disabled=true;btn.textContent="กำลังอัปโหลด…";
+      let up;try{up=await S.assets.upload(f,f.type?undefined:{type:/\.pdf$/i.test(f.name)?"application/pdf":"image/jpeg"})}
+      catch(x){btn.disabled=false;btn.textContent="แนบสลิป";err.textContent=x?.code==="unsupported_type"?"รองรับเฉพาะรูป PNG/JPG/WEBP หรือ PDF":x?.code==="too_large"?"ไฟล์ใหญ่เกินกำหนด":"อัปโหลดไม่สำเร็จ ลองใหม่อีกครั้ง";err.hidden=false;return}
+      const body={assetId:up.id,contentType:up.contentType,amount:n(pd.amount),date:pd.date,time:pd.time,payer:pd.payer,bank:pd.bank,ref:pd.ref,kind:pd.kind,by:S.uid||"",at:new Date().toISOString()};
+      const ref=S.db.collection(base+"/events/"+e.id+"/payments").doc();
+      if(await write(()=>ref.set(body),"แนบสลิปแล้ว")){logAct("slip",e,`฿${fmt(body.amount,2)} · ${body.kind||""}`);S.payments=[...S.payments,{id:ref.id,...body}];S.payOpen=false;S.payDraft=null;await syncPaid();rerender()}
+      else{btn.disabled=false;btn.textContent="แนบสลิป"}};
+    on("[data-paydel]","click",ev=>{S.payDel=ev.currentTarget.dataset.paydel;rerender()});
+    on("[data-paydelno]","click",()=>{S.payDel=null;rerender()});
+    on("[data-paydelyes]","click",async ev=>{const id=ev.currentTarget.dataset.paydelyes,p=S.payments.find(x=>x.id===id);
+      if(await write(()=>S.db.doc(base+"/events/"+e.id+"/payments/"+id).delete(),"ลบสลิปแล้ว")){
+        if(p&&S.assets){try{await S.assets.delete(p.assetId)}catch(_){}}
+        S.payments=S.payments.filter(x=>x.id!==id);S.payDel=null;await syncPaid();rerender()}});
+    if($("#upNew"))$("#upNew").onclick=()=>{S.upOpen=true;S.upDraft={type:UP_TYPES[0]};rerender()};
+    if($("#upCancel"))$("#upCancel").onclick=()=>{S.upOpen=false;S.upDraft=null;rerender()};
+    if($("#upSave"))$("#upSave").onclick=async()=>{readUp();const u=S.upDraft||{};
+      if(!String(u.body||"").trim()){toast("พิมพ์ข้อความก่อนโพสต์");return}
+      const body={title:"",type:"",due:"",body:u.body.trim(),by:S.uid||"",at:new Date().toISOString()};
+      if(await write(()=>S.db.collection(base+"/events/"+e.id+"/updates").doc().set(body),"โพสต์อัปเดตแล้ว")){logAct("update",e,String(body.body).slice(0,120));S.upDraft=null;render()}};
+    on("[data-updel]","click",ev=>{S.upDel=ev.currentTarget.dataset.updel;rerender()});
+    on("[data-updelno]","click",()=>{S.upDel=null;rerender()});
+    on("[data-updelyes]","click",async ev=>{const id=ev.currentTarget.dataset.updelyes;if(await write(()=>S.db.doc(base+"/events/"+e.id+"/updates/"+id).delete(),"ลบอัปเดตแล้ว")){S.upDel=null;rerender()}});
+    if($("#pdfEv"))$("#pdfEv").onclick=ev=>exportPDF(e,ev.currentTarget);
+    if($("#editEv"))$("#editEv").onclick=()=>go("new",{event:e});
+    if($("#delEv"))$("#delEv").onclick=()=>{S.confirmDel=e.id;render()};
+    if($("#delNo"))$("#delNo").onclick=()=>{S.confirmDel=null;render()};
+    if($("#delYes"))$("#delYes").onclick=async()=>{if(await write(()=>S.db.doc(base+"/events/"+e.id).delete(),"ลบงานแล้ว")){logAct("del",e,datesText(sortedDates(e)));go("events")}};
+    const rr=()=>{readPL();S.draft._dirty=true;S.draft._dirty=true;render()};
+    on(".pl input,.pl select","change",rr);
+    if($("#addSl"))$("#addSl").onclick=()=>{readPL();S.draft._dirty=true;S.draft._dirty=true;S.draft.sales.push({menuId:"",name:"",price:0,qty:0});render()};
+    on("[data-pos-add]","click",ev=>{readPL();const id=ev.currentTarget.dataset.posAdd,m=S.menus.find(x=>x.id===id);if(!m)return;
+      const l=S.draft.sales.find(x=>x.menuId===id);if(l)l.qty=n(l.qty)+1;else S.draft.sales.push({menuId:m.id,name:m.name,price:n(m.price),qty:1});
+      S.draft._dirty=true;render()});
+    on("[data-pos-dec]","click",ev=>{readPL();const id=ev.currentTarget.dataset.posDec,l=S.draft.sales.find(x=>x.menuId===id);if(!l)return;
+      l.qty=n(l.qty)-1;S.draft.sales=S.draft.sales.filter(x=>n(x.qty)>0);S.draft._dirty=true;render()});
+    on("[data-delsl]","click",ev=>{readPL();S.draft._dirty=true;S.draft.sales.splice(+ev.currentTarget.dataset.delsl,1);render()});
+    if($("#addOc"))$("#addOc").onclick=()=>{readPL();S.draft._dirty=true;S.draft.otherCosts.push({label:"",amount:0});render()};
+    on("[data-deloc]","click",ev=>{readPL();S.draft._dirty=true;S.draft.otherCosts.splice(+ev.currentTarget.dataset.deloc,1);render()});
+    if($("#savePL"))$("#savePL").onclick=async()=>{readPL();const p=S.draft,d=S.day;
+      const ef=effPL(e,d,p);
+      const body={sales:ef.sales.filter(s=>s.name||s.menuId),cateringFee:n(ef.cateringFee),otherCosts:p.otherCosts.filter(o=>o.label||n(o.amount)),updatedBy:S.uid||"",updatedAt:new Date().toISOString()};
+      if(await write(()=>S.db.doc(base+"/events/"+e.id+"/pl/"+d).set(body),"บันทึก P&L "+(d==="event"?"ทั้งงาน":dLabel(d))+" แล้ว")){S.pl[d]=body;S.draft=null;
+        const r2=v=>Math.round(v*100)/100,act={gross:0,net:0,cogs:0,np:0,days:0,byMonth:{},byDay:{}};
+        Object.entries(S.pl).forEach(([k,v])=>{const c=calcPL(e,effPL(e,k,v)),dk=k==="event"?(sortedDates(e)[0]||""):k,ym=dk.slice(0,7);
+          const m=act.byMonth[ym]||(act.byMonth[ym]={gross:0,net:0,cogs:0,np:0,days:0});
+          const dd=act.byDay[dk]||(act.byDay[dk]={gross:0,net:0,cogs:0,np:0,days:0});
+          for(const o of[act,m,dd]){o.gross+=c.gross;o.net+=c.net;o.cogs+=c.cogs;o.np+=c.np;o.days++}});
+        for(const o of[act,...Object.values(act.byMonth),...Object.values(act.byDay)])for(const k of["gross","net","cogs","np"])o[k]=r2(o[k]);
+        try{await S.db.doc(base+"/events/"+e.id).update({actual:act})}catch(_){}
+        {const c=calcPL(e,effPL(e,d,body));logAct("pl",e,`${d==="event"?"ทั้งงาน":dLabel(d)} · ยอดขาย ฿${fmt(c.gross)} · ${c.np<0?"ขาดทุน":"กำไร"} ฿${fmt(Math.abs(c.np))}`)}
+        render()}};
+  }
+
+  /* users */
+  if(S.view==="users"&&S.isSys){
+    fillNames();
+    const clone=()=>JSON.parse(JSON.stringify(S.members));
+    const box=$("#uResults"),inp=$("#uSearch");
+    const show=async q=>{if(!S.user)return;const hits=await S.user.search(q);
+      box.innerHTML="";hits.filter(h=>!S.members[h.id]&&h.id!==S.uid).forEach(h=>{
+        const b=document.createElement("button");b.type="button";b.className="btn sec small";b.style.textAlign="left";
+        b.textContent="+ "+h.name+(h.email?" · "+h.email:"");
+        b.onclick=()=>{const nx=clone();nx[h.id]={brands:[S.brand],role:"viewer"};inp.value="";box.innerHTML="";saveMembers(nx,"เพิ่มผู้ใช้แล้ว")};
+        box.appendChild(b)});
+      if(q&&!box.children.length)box.innerHTML=`<span class="muted">ไม่พบผู้ใช้</span>`};
+    inp.addEventListener("focus",()=>show(inp.value));
+    inp.addEventListener("input",()=>show(inp.value));
+    on("[data-ub]","change",ev=>{const id=ev.target.dataset.ub,b=ev.target.dataset.brand,nx=clone();
+      const set=new Set(nx[id].brands||[]);ev.target.checked?set.add(b):set.delete(b);nx[id].brands=[...set];saveMembers(nx,"อัปเดตแบรนด์แล้ว")});
+    on("[data-ur]","change",ev=>{const nx=clone();nx[ev.target.dataset.ur].role=ev.target.value;saveMembers(nx,"อัปเดตสิทธิ์แล้ว")});
+    on("[data-urm]","click",ev=>{S.confirmDel="u:"+ev.currentTarget.dataset.urm;render()});
+    on("[data-urmyes]","click",ev=>{const nx=clone();delete nx[ev.currentTarget.dataset.urmyes];saveMembers(nx,"ลบผู้ใช้แล้ว")});
+  }
+
+  /* menus */
+  if(S.view==="menus"){
+    if($("#saveFc"))$("#saveFc").onclick=async()=>{
+      const body={};FC_ROWS.forEach(([k])=>{const v=n($("#fc-"+k).value);body[k]=k==="foodPct"?v/100:v});
+      if(!(body.foodPct<1)){toast("ต้นทุนอาหารต้องน้อยกว่า 100%");return}
+      body.updatedAt=new Date().toISOString();
+      if(await write(()=>S.db.doc(base+"/settings/booth").set(body),"บันทึก Fixed cost แล้ว")){S.fc=body;render()}};
+    on("[data-editmenu]","click",ev=>{S.draft=null;S.editMenu=ev.currentTarget.dataset.editmenu;render()});
+    if($("#newMenu"))$("#newMenu").onclick=()=>{S.draft=null;S.editMenu="new";render()};
+    if($("#m-name")){
+      on(".panel input","change",()=>{readMenu();render()});
+      if($("#addBom"))$("#addBom").onclick=()=>{readMenu();S.draft.bom.push({ingredient:"",qty:1,unit:"",unitCost:0});render()};
+      on("[data-delbom]","click",ev=>{readMenu();S.draft.bom.splice(+ev.currentTarget.dataset.delbom,1);render()});
+      $("#closeMenu").onclick=()=>{S.draft=null;S.editMenu=null;S.confirmDel=null;render()};
+      if($("#delMenu"))$("#delMenu").onclick=()=>{readMenu();S.confirmDel="menu";render()};
+      if($("#mDelNo"))$("#mDelNo").onclick=()=>{S.confirmDel=null;render()};
+      if($("#mDelYes"))$("#mDelYes").onclick=async()=>{if(await write(()=>S.db.doc(base+"/menus/"+S.editMenu).delete(),"ลบเมนูแล้ว")){S.draft=null;S.editMenu=null;S.confirmDel=null;render()}};
+      if($("#saveMenu"))$("#saveMenu").onclick=async()=>{readMenu();const m=S.draft;
+        if(!m.name){toast("ใส่ชื่อเมนูก่อนบันทึก");return}
+        const body={name:m.name,price:n(m.price),bom:m.bom.filter(b=>b.ingredient),updatedAt:new Date().toISOString()};
+        const ref=S.editMenu==="new"?S.db.collection(base+"/menus").doc():S.db.doc(base+"/menus/"+S.editMenu);
+        if(await write(()=>ref.set(body),"บันทึกเมนูแล้ว")){S.draft=null;S.editMenu=null;render()}};
+    }
+  }
+}
+window.addEventListener("bc-rerender",()=>{if(S.brand)rerender()});
+boot();
+})();
+</script>
+
+</body>
+</html>
