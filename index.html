@@ -593,7 +593,8 @@ function viewForm(){
       <div class="row" style="margin-top:8px;align-items:flex-end">
         <label>ตั้งแต่<input type="date" id="f-d-from" style="width:auto"></label>
         <label>ถึง (ถ้าวันเดียวเว้นว่าง)<input type="date" id="f-d-to" style="width:auto"></label>
-        <button class="btn sec small" type="button" id="addDate">+ เพิ่มวัน/ช่วงวัน</button></div>
+        <button class="btn small" type="button" id="addDate">✓ ยืนยันวันที่</button></div>
+      <div id="datePreview" class="muted" style="font-size:.85rem;margin-top:6px" hidden></div>
     </div>
     <div class="grid">
       <label>เวลาเสิร์ฟ เริ่ม<input id="f-from" type="time" value="${esc(e.serveFrom)}"></label>
@@ -1149,11 +1150,14 @@ function bind(){
     if($("#f-slip"))$("#f-slip").addEventListener("change",ev=>{const f=ev.target.files[0];if(!f)return;
       if(f.size>20*1024*1024){toast("ไฟล์ใหญ่เกิน 20 MB");ev.target.value="";return}readForm();S.slipFile=f;render()});
     if($("#slipRemove"))$("#slipRemove").onclick=()=>{readForm();S.slipFile=null;render()};
+    const pendingRange=()=>{const a=$("#f-d-from")?.value,b=($("#f-d-to")?.value)||a;if(!a||b<a)return null;
+      const add=[];for(let d=new Date(a+"T00:00:00Z");d.toISOString().slice(0,10)<=b&&add.length<=366;d.setUTCDate(d.getUTCDate()+1))add.push(d.toISOString().slice(0,10));return add};
+    const showPreview=()=>{const el=$("#datePreview"),r=pendingRange();if(!el)return;el.hidden=!r;if(r)el.textContent=`จะเพิ่ม ${rangeLabel([r[0],r[r.length-1]])} (${r.length} วัน) · กด “ยืนยันวันที่”`};
+    on("#f-d-from,#f-d-to","change",showPreview);on("#f-d-from,#f-d-to","input",showPreview);
     $("#addDate").onclick=()=>{readForm();const a=$("#f-d-from").value,b=$("#f-d-to").value||a;
       if(!a){toast("เลือกวันที่เริ่มก่อน");return}if(b<a){toast("วันที่สิ้นสุดต้องไม่ก่อนวันเริ่ม");return}
-      const add=[];for(let d=new Date(a+"T00:00:00Z");d.toISOString().slice(0,10)<=b;d.setUTCDate(d.getUTCDate()+1))add.push(d.toISOString().slice(0,10));
-      if(add.length>366){toast("ช่วงวันที่ยาวเกิน 1 ปี");return}
-      S.draft.dates=[...new Set([...S.draft.dates.filter(Boolean),...add])].sort();render()};
+      const add=pendingRange();if(add.length>366){toast("ช่วงวันที่ยาวเกิน 1 ปี");return}
+      S.draft.dates=[...new Set([...S.draft.dates.filter(Boolean),...add])].sort();toast(`เพิ่ม ${add.length} วันแล้ว`);render()};
     on("[data-delrange]","click",ev=>{readForm();const r=dateRanges(S.draft.dates)[+ev.currentTarget.dataset.delrange];
       S.draft.dates=S.draft.dates.filter(d=>d&&(d<r[0]||d>r[1]));render()});
     $("#addPk").onclick=()=>{readForm();S.draft.packages.push({menuId:"",name:"",price:"",qty:""});render()};
@@ -1161,6 +1165,7 @@ function bind(){
     $("#cancelForm").onclick=()=>S.editEvent?go("event",{id:S.editEvent.id}):go("events");
     $("#evForm").addEventListener("submit",async ev=>{
       ev.preventDefault();readForm();const e=S.draft,err=$("#formErr");
+      {const r=pendingRange();if(r&&r.length<=366)e.dates=[...new Set([...e.dates.filter(Boolean),...r])].sort()}
       const dates=e.dates.filter(Boolean);
       if(e.mapUrl&&!safeUrl(e.mapUrl)){err.textContent="ลิงก์ Google Maps ต้องขึ้นต้นด้วย https://";err.hidden=false;return}
       const fe=e.feas||{},booth=isBooth(e);
