@@ -331,7 +331,16 @@ const inlineFc=()=>INLINE_FC_BRANDS.includes(S.brand);
 const blankFc=()=>Object.fromEntries(FC_ROWS.map(([k])=>[k,null]));
 const formFc=e=>inlineFc()?(e.feasFc||blankFc()):fcNow();
 const fcMissing=()=>!S.fc||FC_ROWS.some(([k])=>S.fc[k]===null||S.fc[k]===undefined||S.fc[k]==="");
+const TSC_LINES=[["personnel","ค่าใช้จ่ายบุคลากร / COL / ที่พัก / น้ำมันรถ"],["rent","ค่าเช่าพื้นที่บูธ"],["setup","Set up / ก่อสร้างติดตั้งสถานที่บูธ"],["pos","ค่าเช่า POS"],["coffee","ค่าเช่าเครื่องกาแฟ"],["media","ค่าผลิตสื่อตกแต่งบูธ"],["carRent","ค่าเช่ารถ"],["transport","ค่ารถขนของ"]];
+function calcFeasLines(e){
+  const fe=e.feas||{},L=fe.lines||{},days=sortedDates(e).length||1,vatIn=e.vatIncluded!==false;
+  const gross=n(fe.salesPerDay)*days,net=vatIn?gross/(1+VAT):gross,fp=n(fe.foodPct),food=net*fp;
+  const items=TSC_LINES.map(([k,l])=>({k,l,v:n(L[k])})),fixed=items.reduce((a,x)=>a+x.v,0),gp=net-food,np=gp-fixed;
+  const beNet=fp<1?fixed/(1-fp):0,beGross=vatIn?beNet*(1+VAT):beNet;
+  return {lines:true,items,days,staff:0,vatIn,gross,vat:gross-net,net,food,foodPct:fp,fixed,gp,np,rent:n(L.rent),beGross,beDay:beGross/days,f:{foodPct:fp}};
+}
 function calcFeas(e,fcOverride){
+  if(e.feas&&e.feas.lines)return calcFeasLines(e);
   const f={...FC_DEFAULT,...(fcOverride||e.feasFc||S.fc||{})},fe=e.feas||{},days=sortedDates(e).length||1,staff=n(fe.staff);
   const vatIn=e.vatIncluded!==false,gross=n(fe.salesPerDay)*days,net=vatIn?gross/(1+VAT):gross;
   const food=net*n(f.foodPct),otHr=n(f.wage)/8*n(f.otRate);
@@ -343,6 +352,23 @@ function calcFeas(e,fcOverride){
   return {days,staff,vatIn,gross,vat:gross-net,net,food,otHr,labor,ot,allow,rooms,hotel,transport,other,rent,fixed,gp,np,beGross,beDay:beGross/days,f};
 }
 function feasPanel(e,c){
+  if(c.lines){
+    const ok=c.np>0,label=!c.gross?"ยังไม่ได้ใส่ Target sales":ok?"ผ่าน · มีกำไร":"ไม่ผ่าน · ขาดทุน";
+    const R=(t,v,p,cls="")=>`<div class="l ${cls}"><span>${t}</span><span class="num">${v}${p!==undefined?` <small class="muted">${pct(p,c.net)}</small>`:""}</span></div>`;
+    return `<div class="pl"><div class="panel stmt">
+      <div class="row" style="justify-content:space-between;margin-bottom:6px"><span class="sectionlabel">Budget · ${c.days} วัน</span><span class="pill ${!c.gross?"done":ok?"ok":"cx"}">${label}</span></div>
+      ${R("Sales (Target"+(c.vatIn?" inc. VAT":"")+")",fmt(c.gross,2))}
+      ${c.vatIn?R("หัก VAT 7%","("+fmt(c.vat,2)+")",undefined,"sub"):""}
+      ${R("ยอดขายก่อน VAT",fmt(c.net,2),undefined,"key")}
+      ${R("Food cost","("+fmt(c.food,2)+")",c.food)}
+      ${c.items.map(x=>R(esc(x.l),x.v?"("+fmt(x.v,2)+")":"–",x.v,"sub")).join("")}
+      ${R("Total Cost","("+fmt(c.food+c.fixed,2)+")",c.food+c.fixed,"key")}
+      <div class="l final"><span>Profit &amp; Loss</span><span class="num ${c.np<0?"neg":"pos"}">${fmt(c.np,2)} <small class="muted">${pct(c.np,c.net)}</small></span></div>
+    </div>
+    <div class="panel" style="display:flex;flex-direction:column;gap:10px"><div class="sectionlabel">จุดคุ้มทุน</div>
+      <div><div class="num" style="font-size:1.4rem;font-weight:600">฿${fmt(c.beDay)}<span class="muted" style="font-size:.85rem"> /วัน</span></div>
+      <div class="muted" style="font-size:.85rem">ยอดขายขั้นต่ำ${c.vatIn?" (inc. VAT)":""} ทั้งงาน ฿${fmt(c.beGross)}</div></div></div></div>`;
+  }
   const ok=c.np>0,label=!c.gross?"ยังไม่ได้ใส่ยอดขาย":ok?"ผ่าน · มีกำไร":"ไม่ผ่าน · ขาดทุน";
   const L=(t,v,cls="",note="")=>`<div class="l ${cls}"><span>${t}${note?` <small class="muted">${note}</small>`:""}</span><span class="num">${v}</span></div>`;
   return `<div class="pl">
@@ -376,6 +402,7 @@ function defaultPL(e){
   const days=sortedDates(e).length||1;
   if(e.format==="Booth"){
     const c=calcFeas(e),r=v=>Math.round(v/days*100)/100;
+    if(c.lines)return {sales:[],cateringFee:0,otherCosts:c.items.map(x=>({label:x.l,amount:r(x.v)})),saved:false};
     return {sales:(e.packages||[]).map(p=>({menuId:p.menuId||"",name:p.name,price:n(p.price),qty:Math.round(n(p.qty)/days)})),cateringFee:0,
       otherCosts:[["ค่าแรง",c.labor],["OT",c.ot],["เบี้ยเลี้ยง",c.allow],["ค่าที่พัก",c.hotel],["ค่าเช่าบูธ",c.rent],["ค่ารถขนส่ง",c.transport],["ค่าอื่น ๆ (น้ำแข็ง ฯลฯ)",c.other]]
         .map(([l,v])=>({label:l,amount:r(v)})),saved:false};
@@ -648,6 +675,21 @@ function formSlip(e){
   </div>`;
 }
 function boothInputs(e){
+  if(inlineFc()){
+    if(!e.feas||!e.feas.lines)e.feas={salesPerDay:e.feas?.salesPerDay??"",foodPct:"",lines:{}};
+    const fe=e.feas,L=fe.lines||{};
+    return `<div style="display:flex;flex-direction:column;gap:12px;border-top:1px solid var(--line);padding-top:14px">
+      <div><h3>Budget / Feasibility บูธ</h3><p class="muted" style="margin:2px 0 0;font-size:.85rem">กรอกยอดขายเป้าหมายและต้นทุนของงานนี้ เว้นว่างได้</p></div>
+      <div class="grid">
+        <label>Target sales ต่อวัน (บาท) *<input id="f-fs-sales" type="number" min="0" value="${esc(fe.salesPerDay)}"></label>
+        <label>Food cost (% ของยอดขาย)<input id="fl-foodPct" type="number" min="0" step="any" placeholder="เช่น 28.74" value="${fe.foodPct===""||fe.foodPct===null||fe.foodPct===undefined?"":+(n(fe.foodPct)*100).toFixed(4)}"></label>
+        <label style="flex-direction:row;align-items:center;gap:8px;margin-top:22px"><input type="checkbox" id="f-vat" ${e.vatIncluded!==false?"checked":""} style="width:auto"> ยอดขายรวม VAT 7%</label>
+      </div>
+      <div><div class="sectionlabel" style="margin-bottom:6px">ต้นทุนการขาย (ทั้งงาน · บาท)</div>
+      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">${TSC_LINES.map(([k,l])=>`<label>${l}<input id="fl-${k}" type="number" min="0" step="any" placeholder="0" value="${L[k]===""||L[k]===null||L[k]===undefined?"":esc(L[k])}"></label>`).join("")}</div></div>
+      ${feasPanel(e,calcFeas(e))}
+    </div>`;
+  }
   const fe=e.feas||{};
   return `<div style="display:flex;flex-direction:column;gap:12px;border-top:1px solid var(--line);padding-top:14px">
     ${!inlineFc()&&fcMissing()?`<p class="notice warn" style="margin:0">ยังไม่ได้กรอก Fixed cost Booth ของแบรนด์ ${esc(BRANDS[S.brand].name)} ครบ ค่าใช้จ่ายที่ว่างจะคิดเป็น 0 · กรอกได้ที่แท็บ เมนู &amp; BOM</p>`:""}
@@ -673,7 +715,9 @@ function readForm(){
   e.status=$("#f-status").value;
   if($("#f-fee")){e.cateringFeePerDay=$("#f-fee").value;e.distributionNote=$("#f-dist").value.trim()}
   if($("#ffc-foodPct"))e.feasFc=Object.fromEntries(FC_ROWS.map(([k])=>{const raw=$("#ffc-"+k).value.trim();if(raw==="")return [k,null];const v=n(raw);return [k,k==="foodPct"?v/100:v]}));
-  if($("#f-fs-sales"))e.feas={salesPerDay:$("#f-fs-sales").value,rent:$("#f-fs-rent").value,staff:$("#f-fs-staff").value,stay:$("#f-fs-stay").checked};
+  if($("#fl-personnel")){const L={};TSC_LINES.forEach(([k])=>{const v=$("#fl-"+k).value.trim();L[k]=v===""?"":n(v)});const fp=$("#fl-foodPct").value.trim();
+    e.feas={salesPerDay:$("#f-fs-sales").value,foodPct:fp===""?"":n(fp)/100,lines:L,rent:L.rent,staff:0,stay:false}}
+  else if($("#f-fs-sales"))e.feas={salesPerDay:$("#f-fs-sales").value,rent:$("#f-fs-rent").value,staff:$("#f-fs-staff").value,stay:$("#f-fs-stay").checked};
   e.vatIncluded=$("#f-vat").checked;e.note=$("#f-note").value;
   e.packages=e.packages.map((p,i)=>({...p,name:$("#f-pk-name-"+i).value.trim(),price:$("#f-pk-price-"+i).value,qty:$("#f-pk-qty-"+i).value}));
 }
@@ -708,7 +752,7 @@ function viewEvent(){
       <div><dt>เวลาเสิร์ฟ</dt><dd>${timeText(e)}</dd></div>
       ${isBooth(e)?"":`<div><dt>จำนวนแขก</dt><dd>${fmt(e.guests)} ท่าน</dd></div>`}
       <div><dt>เมนู</dt><dd>${(e.packages||[]).map(p=>`${esc(p.name)} ฿${fmt(p.price)} × ${fmt(p.qty)}`).join("<br>")}</dd></div>
-      ${isBooth(e)?`<div><dt>ค่าเช่าบูธ</dt><dd>฿${fmt(e.feas?.rent)}</dd></div><div><dt>พนักงาน</dt><dd>${fmt(e.feas?.staff)} คน${e.feas?.stay?" · พักค้างคืน":""}</dd></div>`
+      ${isBooth(e)?`<div><dt>ค่าเช่าบูธ</dt><dd>฿${fmt(e.feas?.rent)}</dd></div>${e.feas?.lines?"":`<div><dt>พนักงาน</dt><dd>${fmt(e.feas?.staff)} คน${e.feas?.stay?" · พักค้างคืน":""}</dd></div>`}`
         :`<div><dt>ค่าบริการ Catering</dt><dd>฿${fmt(e.cateringFeePerDay)}/วัน × ${ds.length} วัน</dd></div>`}
       ${e.distributionNote?`<div><dt>การแจก</dt><dd>${esc(e.distributionNote)}</dd></div>`:""}
       ${e.note?`<div><dt>หมายเหตุ</dt><dd>${esc(e.note)}</dd></div>`:""}
@@ -726,11 +770,30 @@ function viewEvent(){
     ${S.day?dayPL(e,S.day):`<div class="empty">ยังไม่ได้กำหนดวันที่จัดงาน</div>`}
   </section>`:""}
   ${tab==="pl"?plCards(e,rows,sum):""}
+  ${tab==="pl"&&rows.some(r=>r.c)?budgetVsActual(e,rows,sum):""}
   ${tab==="pl"&&rows.some(r=>r.c)?`<section style="display:flex;flex-direction:column;gap:10px"><h2>กำไรขาดทุนรายวัน</h2>
     <div class="tbl-wrap"><table><thead><tr><th>วันที่</th><th class="r">ยอดขาย (inc. VAT)</th><th class="r">COGS</th><th class="r">GP</th><th class="r">ค่าใช้จ่ายอื่น</th><th class="r">กำไรสุทธิ</th><th class="r">%</th></tr></thead><tbody>
     ${rows.map(r=>`<tr><td>${dLabel(r.d)}</td>${r.c?["gross","cogs","gp","other"].map(k=>`<td class="r num">${fmt(r.c[k])}</td>`).join("")+`<td class="r num ${r.c.np<0?"neg":"pos"}">${fmt(r.c.np)}</td><td class="r num">${pct(r.c.np,r.c.net)}</td>`:`<td colspan="6" class="muted">ยังไม่กรอก</td>`}</tr>`).join("")}
     <tr class="total"><td>รวม</td>${["gross","cogs","gp","other"].map(k=>`<td class="r num">${fmt(sum[k])}</td>`).join("")}<td class="r num ${sum.np<0?"neg":"pos"}">${fmt(sum.np)}</td><td class="r num">${pct(sum.np,sum.net)}</td></tr>
     </tbody></table></div></section>`:""}`;
+}
+function budgetVsActual(e,rows,sum){
+  const c=calcFeas(e);if(!c.lines)return "";
+  const act={};let other=0;
+  rows.filter(r=>r.pl).forEach(r=>(r.pl.otherCosts||[]).forEach(o=>{const L=TSC_LINES.find(([,l])=>l===o.label);if(L)act[L[0]]=(act[L[0]]||0)+n(o.amount);else other+=n(o.amount)}));
+  const bTot=c.food+c.fixed,aTot=sum.cogs+sum.other;
+  const row=(l,b,a,cls="")=>`<tr class="${cls}"><td>${l}</td><td class="r num">${b===null?"":fmt(b,2)}</td><td class="r num">${b===null?"":pct(b,c.net)}</td><td class="r num">${a===null?"":fmt(a,2)}</td><td class="r num">${a===null?"":pct(a,sum.net)}</td></tr>`;
+  return `<section style="display:flex;flex-direction:column;gap:10px"><h2>Budget vs Actual</h2>
+  <div class="tbl-wrap"><table><thead><tr><th>รายการ</th><th class="r">Budget</th><th class="r">%</th><th class="r">Actual</th><th class="r">%</th></tr></thead><tbody>
+    ${row("Sales (inc. VAT)",c.gross,sum.gross)}
+    ${row("ยอดขายก่อน VAT",c.net,sum.net)}
+    ${row("Food cost",c.food,sum.cogs)}
+    ${TSC_LINES.map(([k,l])=>row(l,n(e.feas.lines[k]),act[k]||0)).join("")}
+    ${other?row("ค่าใช้จ่ายอื่น ๆ",0,other):""}
+    ${row("Total Cost",bTot,aTot,"total")}
+    <tr class="total"><td>Profit &amp; Loss</td><td class="r num ${c.np<0?"neg":"pos"}">${fmt(c.np,2)}</td><td class="r num">${pct(c.np,c.net)}</td><td class="r num ${sum.np<0?"neg":"pos"}">${fmt(sum.np,2)}</td><td class="r num">${pct(sum.np,sum.net)}</td></tr>
+  </tbody></table></div>
+  <p class="muted" style="margin:0;font-size:.8rem">Budget = ทั้งงาน · Actual = วันที่กรอกยอดแล้ว ${rows.filter(r=>r.c).length}/${rows.length} วัน · % คิดจากยอดขายก่อน VAT · Food cost จริงคิดจาก COGS ต่อเมนู</p></section>`;
 }
 function plCards(e,rows,sum){
   const done=rows.filter(r=>r.c),fz=calcFeas(e),days=rows.length||1;
@@ -1198,12 +1261,12 @@ function bind(){
       const fe=e.feas||{},booth=isBooth(e);
       const miss=[!e.customer&&"ลูกค้า/ผู้ติดต่อ",!e.venue&&"สถานที่",!dates.length&&"วันที่จัดงาน",
         !booth&&!e.packages.some(p=>p.name&&n(p.qty))&&"เมนูอย่างน้อย 1 รายการ",
-        booth&&!(n(fe.salesPerDay)>0)&&"Target sales",booth&&String(fe.rent??"")===""&&"ค่าเช่าบูธ",booth&&!(n(fe.staff)>0)&&"จำนวนพนักงาน"].filter(Boolean);
+        booth&&!(n(fe.salesPerDay)>0)&&"Target sales",booth&&!fe.lines&&String(fe.rent??"")===""&&"ค่าเช่าบูธ",booth&&!fe.lines&&!(n(fe.staff)>0)&&"จำนวนพนักงาน"].filter(Boolean);
       if(miss.length){err.textContent="กรอกให้ครบ: "+miss.join(", ");err.hidden=false;return}
       const body={paid:n(S.editEvent?.paid),...(S.editEvent?.actual?{actual:S.editEvent.actual}:{}),format:e.format,customer:e.customer,phone:e.phone,dates:[...new Set(dates)].sort(),serveFrom:e.serveFrom,serveTo:e.serveTo,
         venue:e.venue,mapUrl:e.mapUrl||"",guests:isBooth(e)?0:n(e.guests),packages:e.packages.filter(p=>p.name).map(p=>({menuId:p.menuId||(S.menus.find(m=>m.name===p.name)||{}).id||"",name:p.name,price:n(p.price),qty:n(p.qty)})),
         distributionNote:booth?"":e.distributionNote,cateringFeePerDay:booth?0:n(e.cateringFeePerDay),
-        feas:booth?{salesPerDay:n(fe.salesPerDay),rent:n(fe.rent),staff:n(fe.staff),stay:!!fe.stay}:null,feasFc:booth?formFc(e):null,vatIncluded:e.vatIncluded,status:e.status,note:e.note,
+        feas:booth?(fe.lines?{salesPerDay:n(fe.salesPerDay),foodPct:n(fe.foodPct),lines:Object.fromEntries(TSC_LINES.map(([k])=>[k,n(fe.lines[k])])),rent:n(fe.lines.rent),staff:0,stay:false}:{salesPerDay:n(fe.salesPerDay),rent:n(fe.rent),staff:n(fe.staff),stay:!!fe.stay}):null,feasFc:booth&&!fe.lines?formFc(e):null,vatIncluded:e.vatIncluded,status:e.status,note:e.note,
         createdBy:S.editEvent?.createdBy||S.uid||"",createdAt:S.editEvent?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
       const ref=S.editEvent?S.db.doc(base+"/events/"+S.editEvent.id):S.db.collection(base+"/events").doc();
       const sub=ev.submitter||$("#evForm button[type=submit]");if(sub){sub.disabled=true;sub.textContent="กำลังบันทึก…"}
