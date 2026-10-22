@@ -849,7 +849,13 @@ function viewDash(){
     <div class="row">
       <span class="sectionlabel" style="margin-right:2px">เลือกเดือน</span>
       <button class="btn sec small" data-dm="-1" type="button" aria-label="เดือนก่อน">‹</button>
-      <input id="dashMonth" type="month" value="${ym}" style="width:auto">
+      <div style="position:relative">
+        <button class="btn sec small" id="mpToggle" type="button" aria-expanded="${!!S.mpOpen}" aria-label="เลือกเดือน" style="display:inline-flex;align-items:center;gap:8px;padding:7px 12px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16.5" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/><path d="M7.5 13.5h2M11 13.5h2M14.5 13.5h2M7.5 17h2M11 17h2"/></svg><span>${TH_M[+ym.slice(5)-1]} ${+ym.slice(0,4)+543}</span></button>
+        ${S.mpOpen?(()=>{const y=S.mpYear||+ym.slice(0,4);return `<div class="panel" role="dialog" aria-label="เลือกเดือน" style="position:absolute;right:0;top:calc(100% + 8px);z-index:6;width:280px;padding:12px;display:flex;flex-direction:column;gap:10px">
+          <div class="row" style="justify-content:space-between"><button class="btn sec small" data-mpy="-1" type="button" aria-label="ปีก่อน">‹</button><b>${y+543}</b><button class="btn sec small" data-mpy="1" type="button" aria-label="ปีถัดไป">›</button></div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">${TH_M.map((m,i)=>{const v=y+"-"+String(i+1).padStart(2,"0");return `<button type="button" class="fbtn" data-mpm="${v}" aria-pressed="${v===ym}" style="padding:8px 4px">${m}</button>`}).join("")}</div>
+        </div>`})():""}
+      </div>
       <button class="btn sec small" data-dm="1" type="button" aria-label="เดือนถัดไป">›</button>
       ${S.downloads?`<button class="btn" id="rpToggle" type="button" aria-expanded="${!!S.rpOpen}">Export PDF</button>`:""}
     </div></div>
@@ -1133,6 +1139,9 @@ function bind(){
   }
   if(S.view==="dash"){
     on("[data-dm]","click",ev=>{S.dashMonth=ymShift(S.dashMonth,+ev.currentTarget.dataset.dm);S.rpFrom=S.rpTo=null;render()});
+    if($("#mpToggle"))$("#mpToggle").onclick=()=>{S.mpOpen=!S.mpOpen;S.mpYear=+S.dashMonth.slice(0,4);render()};
+    on("[data-mpy]","click",ev=>{S.mpYear=(S.mpYear||+S.dashMonth.slice(0,4))+ +ev.currentTarget.dataset.mpy;render()});
+    on("[data-mpm]","click",ev=>{S.dashMonth=ev.currentTarget.dataset.mpm;S.mpOpen=false;S.rpFrom=S.rpTo=null;render()});
     if($("#dashMonth"))$("#dashMonth").addEventListener("change",ev=>{if(/^\d{4}-\d{2}$/.test(ev.target.value)){S.dashMonth=ev.target.value;S.rpFrom=S.rpTo=null;render()}});
     if($("#rpToggle"))$("#rpToggle").onclick=()=>{S.rpOpen=!S.rpOpen;render()};
     if($("#rpCancel"))$("#rpCancel").onclick=()=>{S.rpOpen=false;render()};
