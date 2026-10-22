@@ -25,6 +25,7 @@
     border:1px solid var(--line,#e6e9f1);border-radius:28px;padding:36px 28px 28px;box-shadow:var(--shadow);text-align:left}
   .bc-login .mark{font-family:Georgia,"Times New Roman",serif;font-size:3.6rem;line-height:1;font-weight:700;letter-spacing:-.04em;text-align:center;
     background:linear-gradient(120deg,#4a63d8 0%,#a35a9a 45%,#ee8838 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .bc-login .logo{display:block;height:72px;width:auto;margin:0 auto 4px}
   .bc-login h1{margin:0;font-size:1.45rem;text-align:center}
   .bc-login .sub{margin:-6px 0 6px;color:var(--muted,#6b7285);font-size:.95rem;text-align:center}
   .bc-login .err{margin:0;color:var(--bad,#b42318);font-size:.88rem}
@@ -41,7 +42,7 @@
     }
     const signup = mode === "signup", reset = mode === "reset";
     el.innerHTML = `<form id="bcLoginForm" novalidate>
-      <div class="mark" aria-hidden="true">Fab</div>
+      <img class="logo" src="assets/fab-logo.png" alt="FAB">
       <h1>FAB Booth &amp; Catering</h1>
       <p class="sub">${signup ? "สมัครใช้งาน · รอผู้ดูแลกำหนดแบรนด์และสิทธิ์ให้" : reset ? "ลืมรหัสผ่าน · ระบบจะส่งลิงก์ตั้งรหัสใหม่ทางอีเมล" : "ระบบงานบูธและแคเทอริ่ง"}</p>
       ${signup ? '<label>ชื่อ-นามสกุล<input id="bcName" autocomplete="name" required></label>' : ""}

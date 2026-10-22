@@ -2,6 +2,7 @@
 <html lang="th">
 <head>
 <meta charset="utf-8">
+<link rel="icon" href="assets/fab-logo.png">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
@@ -242,6 +243,7 @@ tr.total td{background:var(--brand-soft)}
 
 <div id="gate" class="gate" hidden>
   <div class="gate-in">
+    <img src="assets/fab-logo.png" alt="FAB" style="height:64px;width:auto;margin:0 auto">
     <div>
       <div class="sectionlabel">Booth &amp; Catering</div>
       <h1>เลือกแบรนด์เพื่อเข้าใช้งาน</h1>
@@ -255,7 +257,7 @@ tr.total td{background:var(--brand-soft)}
 <div id="app" hidden>
   <header class="bar"><div class="bar-in">
     <div class="bar-top">
-      <div><div class="unit">Booth &amp; Catering</div><div class="brandname" id="brandName"></div></div>
+      <img src="assets/fab-logo.png" alt="FAB" style="flex:none;height:30px;width:auto"><div><div class="unit">Booth &amp; Catering</div><div class="brandname" id="brandName"></div></div>
       <span class="spacer"></span>
       <span class="chip" id="roleChip"></span>
       <button class="ghost" id="switchBrand" type="button">เปลี่ยนแบรนด์</button>
