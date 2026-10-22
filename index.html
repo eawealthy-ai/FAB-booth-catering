@@ -558,9 +558,9 @@ function viewEvents(){
       <div class="datebox">${dd?`<span class="d">${+dd[2]}</span><span class="m">${TH_M[+dd[1]-1]}</span>`:`<span class="m">ไม่มีวันที่</span>`}</div>
       <div class="meta"><div class="t">${esc(e.customer)} · ${esc(e.venue)}</div>
         <div class="s">${esc(e.format)} · ${datesText(ds)}${ds.length>1?` (${ds.length} วัน)`:""} · ${timeText(e)}${isBooth(e)?"":` · ${fmt(e.guests)} ท่าน`}</div></div>
-      <div class="amt">${cls==="done"?(e.actual&&n(e.actual.days)?`<div class="sectionlabel" style="font-size:.66rem">ยอดขายจริง</div><div class="num" style="font-weight:600">฿${fmt(e.actual.gross)}</div>
+      <div class="amt">${cls==="done"?(e.actual&&n(e.actual.days)?`<div class="sectionlabel" style="font-size:.66rem">ยอดขาย (inc. VAT)</div><div class="num" style="font-weight:600">฿${fmt(e.actual.gross)}</div>
         <div class="num ${n(e.actual.np)<0?"neg":"pos"}" style="font-size:.85rem;font-weight:600">${n(e.actual.np)<0?"ขาดทุน":"กำไร"} ฿${fmt(Math.abs(n(e.actual.np)))}</div>`
-        :`<div class="sectionlabel" style="font-size:.66rem">ยอดขายจริง</div><div class="muted" style="font-size:.85rem">ยังไม่กรอกยอด</div>`)
+        :`<div class="sectionlabel" style="font-size:.66rem">ยอดขาย (inc. VAT)</div><div class="muted" style="font-size:.85rem">ยังไม่กรอกยอด</div>`)
       :`${isBooth(e)?`<div class="sectionlabel" style="font-size:.66rem">Target sales</div>`:""}<div class="num" style="font-weight:600">฿${fmt(eventTotal(e))}</div>`}<span class="pill ${cls}">${lab}</span></div>
     </button>`}).join("")}</div>`;
 }
@@ -593,7 +593,8 @@ function viewForm(){
       <div class="row" style="margin-top:8px;align-items:flex-end">
         <label>ตั้งแต่<input type="date" id="f-d-from" style="width:auto"></label>
         <label>ถึง (ถ้าวันเดียวเว้นว่าง)<input type="date" id="f-d-to" style="width:auto"></label>
-        <button class="btn small" type="button" id="addDate">✓ ยืนยันวันที่</button></div>
+        <button class="btn small" type="button" id="addDate">✓ ยืนยันวันที่</button>
+        <button class="btn sec small" type="button" id="moreDate">+ เพิ่มวัน/ช่วงเวลา</button></div>
       <div id="datePreview" class="muted" style="font-size:.85rem;margin-top:6px" hidden></div>
     </div>
     <div class="grid">
@@ -716,9 +717,9 @@ function viewEvent(){
   </section>`:""}
   ${tab==="pl"?plCards(e,rows,sum):""}
   ${tab==="pl"&&rows.some(r=>r.c)?`<section style="display:flex;flex-direction:column;gap:10px"><h2>กำไรขาดทุนรายวัน</h2>
-    <div class="tbl-wrap"><table><thead><tr><th>วันที่</th><th class="r">ยอดขาย (รวม VAT)</th><th class="r">ยอดขายสุทธิ</th><th class="r">COGS</th><th class="r">GP</th><th class="r">ค่าใช้จ่ายอื่น</th><th class="r">กำไรสุทธิ</th><th class="r">%</th></tr></thead><tbody>
-    ${rows.map(r=>`<tr><td>${dLabel(r.d)}</td>${r.c?["gross","net","cogs","gp","other"].map(k=>`<td class="r num">${fmt(r.c[k])}</td>`).join("")+`<td class="r num ${r.c.np<0?"neg":"pos"}">${fmt(r.c.np)}</td><td class="r num">${pct(r.c.np,r.c.net)}</td>`:`<td colspan="7" class="muted">ยังไม่กรอก</td>`}</tr>`).join("")}
-    <tr class="total"><td>รวม</td>${["gross","net","cogs","gp","other"].map(k=>`<td class="r num">${fmt(sum[k])}</td>`).join("")}<td class="r num ${sum.np<0?"neg":"pos"}">${fmt(sum.np)}</td><td class="r num">${pct(sum.np,sum.net)}</td></tr>
+    <div class="tbl-wrap"><table><thead><tr><th>วันที่</th><th class="r">ยอดขาย (inc. VAT)</th><th class="r">COGS</th><th class="r">GP</th><th class="r">ค่าใช้จ่ายอื่น</th><th class="r">กำไรสุทธิ</th><th class="r">%</th></tr></thead><tbody>
+    ${rows.map(r=>`<tr><td>${dLabel(r.d)}</td>${r.c?["gross","cogs","gp","other"].map(k=>`<td class="r num">${fmt(r.c[k])}</td>`).join("")+`<td class="r num ${r.c.np<0?"neg":"pos"}">${fmt(r.c.np)}</td><td class="r num">${pct(r.c.np,r.c.net)}</td>`:`<td colspan="6" class="muted">ยังไม่กรอก</td>`}</tr>`).join("")}
+    <tr class="total"><td>รวม</td>${["gross","cogs","gp","other"].map(k=>`<td class="r num">${fmt(sum[k])}</td>`).join("")}<td class="r num ${sum.np<0?"neg":"pos"}">${fmt(sum.np)}</td><td class="r num">${pct(sum.np,sum.net)}</td></tr>
     </tbody></table></div></section>`:""}`;
 }
 function plCards(e,rows,sum){
@@ -727,8 +728,8 @@ function plCards(e,rows,sum){
   const tgt=n(e.feas?.salesPerDay)*done.length,feasNp=fz.np/days*done.length;
   const card=(t,v,sub,cls="")=>`<div class="panel" style="padding:14px 16px;display:flex;flex-direction:column;gap:2px"><div class="sectionlabel">${t}</div><div class="num ${cls}" style="font-size:1.3rem;font-weight:600">${v}</div><div class="muted" style="font-size:.82rem">${sub}</div></div>`;
   return `<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
-    ${card("ยอดขายจริง (รวม VAT)","฿"+fmt(sum.gross),tgt?`Target ${done.length} วัน ฿${fmt(tgt)} · ${pct(sum.gross,tgt)}`:"ยังไม่ได้ตั้ง Target sales")}
-    ${card("กำไรสุทธิจริง","฿"+fmt(sum.np),`${pct(sum.np,sum.net)} ของยอดขายสุทธิ`,sum.np<0?"neg":"pos")}
+    ${card("ยอดขาย (inc. VAT)","฿"+fmt(sum.gross),tgt?`Target ${done.length} วัน ฿${fmt(tgt)} · ${pct(sum.gross,tgt)}`:"ยังไม่ได้ตั้ง Target sales")}
+    ${card("กำไรสุทธิจริง","฿"+fmt(sum.np),`${pct(sum.np,sum.net)} ของยอดขายก่อน VAT`,sum.np<0?"neg":"pos")}
     ${card("Feasibility ช่วงเดียวกัน","฿"+fmt(feasNp),tgt?`ต่างจากจริง ฿${fmt(sum.np-feasNp)}`:"คิดจาก Target sales = 0")}
     ${card("กรอกยอดแล้ว",`${done.length}/${rows.length} วัน`,`Food cost ${pct(sum.cogs,sum.net)}`)}
   </div>`;
@@ -859,13 +860,13 @@ function viewDash(){
   </section>`:""}
   <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(190px,1fr))">
     ${card("จำนวนบูธ",fmt(t.booth)+" งาน",`${fmt(t.boothDays)} วันออกบูธ · Catering ${fmt(t.cat)} งาน`)}
-    ${card("ยอดขายจริง (รวม VAT)","฿"+fmt(t.g),t.tg?`Target ฿${fmt(t.tg)} · ${pct(t.g,t.tg)}`:"ยังไม่มี Target")}
-    ${card("กำไร/ขาดทุนสุทธิ","฿"+fmt(t.np),t.net?`${pct(t.np,t.net)} ของยอดขายสุทธิ ฿${fmt(t.net)}`:"ยังไม่มียอดขาย",t.np<0?"neg":t.np>0?"pos":"")}
+    ${card("ยอดขาย (inc. VAT)","฿"+fmt(t.g),t.tg?`Target ฿${fmt(t.tg)} · ${pct(t.g,t.tg)}`:"ยังไม่มี Target")}
+    ${card("กำไร/ขาดทุนสุทธิ","฿"+fmt(t.np),t.net?`${pct(t.np,t.net)} ของยอดขายก่อน VAT`:"ยังไม่มียอดขาย",t.np<0?"neg":t.np>0?"pos":"")}
     ${card("กรอกยอดแล้ว",`${t.done}/${rows.length} งาน`,t.net?`Food cost ${pct(t.cogs,t.net)}`:"")}
   </div>
   ${rows.length?`<section class="panel" style="display:flex;flex-direction:column;gap:10px">
     <div class="row" style="justify-content:space-between"><h2>ยอดขายเทียบ Target</h2><div class="row muted" style="font-size:.8rem;gap:12px">
-      <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--brand-2);vertical-align:middle"></span> ยอดขายจริง</span>
+      <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--brand-2);vertical-align:middle"></span> ยอดขาย (inc. VAT)</span>
       <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;border:1.5px dashed var(--muted);vertical-align:middle"></span> Target / มูลค่างาน</span></div></div>
     ${rows.map(r=>{const g=r.a?n(r.a.gross):0;return `<div style="display:grid;grid-template-columns:minmax(0,180px) minmax(0,1fr) 92px;gap:10px;align-items:center;font-size:.86rem">
       <div style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.e.customer)}">${esc(r.e.customer)}</div>
@@ -874,11 +875,11 @@ function viewDash(){
         <div style="position:absolute;inset:3px auto 3px 0;width:${(g/max*100).toFixed(2)}%;background:var(--brand-2);border-radius:3px"></div></div>
       <div class="num" style="text-align:right">${r.a?fmt(g):"–"}</div></div>`}).join("")}
   </section>
-  <div class="tbl-wrap"><table><thead><tr><th>วันที่ (ในเดือน)</th><th>งาน</th><th>รูปแบบ</th><th class="r">Target / มูลค่างาน</th><th class="r">ยอดขายจริง</th><th class="r">ยอดขายสุทธิ</th><th class="r">กำไร/ขาดทุน</th><th class="r">%</th></tr></thead><tbody>
+  <div class="tbl-wrap"><table><thead><tr><th>วันที่ (ในเดือน)</th><th>งาน</th><th>รูปแบบ</th><th class="r">Target / มูลค่างาน</th><th class="r">ยอดขาย (inc. VAT)</th><th class="r">กำไร/ขาดทุน</th><th class="r">%</th></tr></thead><tbody>
     ${rows.map(r=>`<tr data-open="${esc(r.e.id)}" style="cursor:pointer"><td>${datesText(r.days)}${r.days.length>1?` <span class="muted">(${r.days.length} วัน)</span>`:""}</td><td><b>${esc(r.e.customer)}</b><div class="muted" style="font-size:.8rem">${esc(r.e.venue)}</div></td><td>${esc(r.e.format)}</td>
-      <td class="r num">${fmt(r.tg)}</td><td class="r num">${r.a?fmt(r.a.gross):"–"}</td><td class="r num">${r.a?fmt(r.a.net):"–"}</td>
+      <td class="r num">${fmt(r.tg)}</td><td class="r num">${r.a?fmt(r.a.gross):"–"}</td>
       <td class="r num ${r.a?(n(r.a.np)<0?"neg":"pos"):""}">${r.a?fmt(r.a.np):"–"}</td><td class="r num">${r.a?pct(r.a.np,r.a.net):"–"}</td></tr>`).join("")}
-    <tr class="total"><td colspan="3">รวม ${rows.length} งาน</td><td class="r num">${fmt(t.tg)}</td><td class="r num">${fmt(t.g)}</td><td class="r num">${fmt(t.net)}</td><td class="r num ${t.np<0?"neg":"pos"}">${fmt(t.np)}</td><td class="r num">${pct(t.np,t.net)}</td></tr>
+    <tr class="total"><td colspan="3">รวม ${rows.length} งาน</td><td class="r num">${fmt(t.tg)}</td><td class="r num">${fmt(t.g)}</td><td class="r num ${t.np<0?"neg":"pos"}">${fmt(t.np)}</td><td class="r num">${pct(t.np,t.net)}</td></tr>
   </tbody></table></div>
   <p class="muted" style="margin:0;font-size:.8rem">งานหลายเดือนนับเฉพาะวันที่อยู่ในเดือนนี้ · Catering นับในเดือนของวันแรก · ไม่รวมงานที่ยกเลิก</p>`
   :`<div class="empty">ไม่มีงานใน${ymLabel(ym)}</div>`}`;
@@ -893,14 +894,14 @@ function rangeSheet(f,t0){
     <div><div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;opacity:.85">Booth &amp; Catering · ${esc(BRANDS[S.brand].name)}</div><div style="font-family:var(--f-display);font-size:22px;font-weight:700">${title}</div></div>
     <div style="font-size:11px;opacity:.85">พิมพ์ ${now.getDate()} ${TH_M[now.getMonth()]} ${now.getFullYear()+543-2500}</div></div>
   <div style="padding:20px 28px;display:flex;flex-direction:column;gap:14px">
-    <div style="display:flex;gap:12px">${[["จำนวนบูธ",`${fmt(t.booth)} งาน · ${fmt(t.boothDays)} วัน`],["Catering",`${fmt(t.cat)} งาน`],["Target / มูลค่างาน","฿"+fmt(t.tg)],["ยอดขายจริง (รวม VAT)","฿"+fmt(t.g)],["กำไร/ขาดทุนสุทธิ","฿"+fmt(t.np)+(t.net?` (${pct(t.np,t.net)})`:"")]].map(([l,v],i)=>`<div style="flex:1;border:1px solid var(--line);border-radius:10px;padding:10px 12px">
+    <div style="display:flex;gap:12px">${[["จำนวนบูธ",`${fmt(t.booth)} งาน · ${fmt(t.boothDays)} วัน`],["Catering",`${fmt(t.cat)} งาน`],["Target / มูลค่างาน","฿"+fmt(t.tg)],["ยอดขาย (inc. VAT)","฿"+fmt(t.g)],["กำไร/ขาดทุนสุทธิ","฿"+fmt(t.np)+(t.net?` (${pct(t.np,t.net)})`:"")]].map(([l,v],i)=>`<div style="flex:1;border:1px solid var(--line);border-radius:10px;padding:10px 12px">
       <div style="font-size:11px;color:var(--muted)">${l}</div><div style="font-family:var(--f-num);font-size:16px;font-weight:600;${i===4?`color:${t.np<0?"var(--bad)":"var(--good)"}`:""}">${v}</div></div>`).join("")}</div>
-    ${rows.length?`<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>${th("#",1)}${th("วันที่ (ในช่วง)")}${th("งาน / สถานที่")}${th("รูปแบบ")}${th("Target / มูลค่างาน",1)}${th("ยอดขายจริง",1)}${th("ยอดขายสุทธิ",1)}${th("กำไร/ขาดทุน",1)}${th("%",1)}</tr></thead><tbody>
+    ${rows.length?`<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>${th("#",1)}${th("วันที่ (ในช่วง)")}${th("งาน / สถานที่")}${th("รูปแบบ")}${th("Target / มูลค่างาน",1)}${th("ยอดขาย (inc. VAT)",1)}${th("กำไร/ขาดทุน",1)}${th("%",1)}</tr></thead><tbody>
       ${rows.map((r,i)=>`<tr>${td(i+1,R)}${td(datesText(r.days)+(r.days.length>1?`<div style="color:var(--muted);font-size:11px">${r.days.length} วัน</div>`:""))}${td(`<b>${esc(r.e.customer)}</b><div style="color:var(--muted);font-size:11px">${esc(r.e.venue)}</div>`)}${td(esc(r.e.format))}
-        ${td(fmt(r.tg),R)}${td(r.a?fmt(r.a.gross):"–",R)}${td(r.a?fmt(r.a.net):"–",R)}${td(r.a?`<span style="color:${n(r.a.np)<0?"var(--bad)":"var(--good)"};font-weight:600">${fmt(r.a.np)}</span>`:"–",R)}${td(r.a?pct(r.a.np,r.a.net):"–",R)}</tr>`).join("")}
-      <tr><td colspan="4" style="padding:8px;font-weight:700;background:var(--soft)">รวม ${rows.length} งาน</td><td style="${R2}">${fmt(t.tg)}</td><td style="${R2}">${fmt(t.g)}</td><td style="${R2}">${fmt(t.net)}</td><td style="${R2};color:${t.np<0?"var(--bad)":"var(--good)"}">${fmt(t.np)}</td><td style="${R2}">${pct(t.np,t.net)}</td></tr></tbody></table>`
+        ${td(fmt(r.tg),R)}${td(r.a?fmt(r.a.gross):"–",R)}${td(r.a?`<span style="color:${n(r.a.np)<0?"var(--bad)":"var(--good)"};font-weight:600">${fmt(r.a.np)}</span>`:"–",R)}${td(r.a?pct(r.a.np,r.a.net):"–",R)}</tr>`).join("")}
+      <tr><td colspan="4" style="padding:8px;font-weight:700;background:var(--soft)">รวม ${rows.length} งาน</td><td style="${R2}">${fmt(t.tg)}</td><td style="${R2}">${fmt(t.g)}</td><td style="${R2};color:${t.np<0?"var(--bad)":"var(--good)"}">${fmt(t.np)}</td><td style="${R2}">${pct(t.np,t.net)}</td></tr></tbody></table>`
       :`<div style="color:var(--muted)">ไม่มีงานในช่วงนี้</div>`}
-    <div style="font-size:11px;color:var(--muted)">ยอดขายจริง/กำไร มาจาก P&amp;L ที่บันทึกแล้ว · ยอดขายสุทธิถอด VAT 7% · งานบูธนับเฉพาะวันที่อยู่ในช่วง · Catering นับตามวันแรกของงาน · ไม่รวมงานที่ยกเลิก</div>
+    <div style="font-size:11px;color:var(--muted)">ยอดขาย/กำไร มาจาก P&amp;L ที่บันทึกแล้ว · % คิดจากยอดขายก่อน VAT 7% · งานบูธนับเฉพาะวันที่อยู่ในช่วง · Catering นับตามวันแรกของงาน · ไม่รวมงานที่ยกเลิก</div>
   </div>`;
 }
 function summarySheet(){
@@ -912,7 +913,7 @@ function summarySheet(){
     const R="text-align:right;font-family:var(--f-num);white-space:nowrap;";
     return `<tr style="${cx?"color:var(--muted);text-decoration:line-through;":""}">${td(i+1,R)}${td(datesText(ds)+(ds.length>1?`<div style="color:var(--muted);font-size:11px">${ds.length} วัน</div>`:""))}
       ${td(`<b>${esc(e.customer)}</b><div style="color:var(--muted);font-size:11px">${esc(e.venue)}</div>`)}${td(esc(e.format))}${td(lab)}
-      ${td(fmt(tg),R)}${td(a?fmt(a.gross):"–",R)}${td(a?fmt(a.net):"–",R)}
+      ${td(fmt(tg),R)}${td(a?fmt(a.gross):"–",R)}
       ${td(a?`<span style="color:${n(a.np)<0?"var(--bad)":"var(--good)"};font-weight:600">${fmt(a.np)}</span>`:"–",R)}${td(a?pct(a.np,a.net):"–",R)}</tr>`}).join("");
   const th=(t,r)=>`<th style="background:var(--brand);color:var(--brand-ink);padding:8px;text-align:${r?"right":"left"};font-weight:600;white-space:nowrap">${t}</th>`;
   const R2="text-align:right;font-family:var(--f-num);padding:8px;font-weight:700;background:var(--soft);white-space:nowrap";
@@ -920,12 +921,12 @@ function summarySheet(){
     <div><div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;opacity:.85">Booth &amp; Catering · ${esc(BRANDS[S.brand].name)}</div><div style="font-family:var(--f-display);font-size:22px;font-weight:700">สรุปงานทั้งหมด</div></div>
     <div style="font-size:11px;opacity:.85">พิมพ์ ${now.getDate()} ${TH_M[now.getMonth()]} ${now.getFullYear()+543-2500} · ${evs.length} งาน</div></div>
   <div style="padding:20px 28px;display:flex;flex-direction:column;gap:14px">
-    <div style="display:flex;gap:12px">${[["Target / มูลค่างาน",tot.tg],["ยอดขายจริง (รวม VAT)",tot.g],["ยอดขายสุทธิ",tot.net],["กำไร/ขาดทุนสุทธิ",tot.np]].map(([l,v],i)=>`<div style="flex:1;border:1px solid var(--line);border-radius:10px;padding:10px 12px">
-      <div style="font-size:11px;color:var(--muted)">${l}</div><div style="font-family:var(--f-num);font-size:18px;font-weight:600;${i===3?`color:${tot.np<0?"var(--bad)":"var(--good)"}`:""}">฿${fmt(v)}</div></div>`).join("")}</div>
-    <table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>${th("#",1)}${th("วันที่")}${th("งาน / สถานที่")}${th("รูปแบบ")}${th("สถานะ")}${th("Target / มูลค่างาน",1)}${th("ยอดขายจริง",1)}${th("ยอดขายสุทธิ",1)}${th("กำไร/ขาดทุน",1)}${th("%",1)}</tr></thead>
-    <tbody>${rows}<tr><td colspan="5" style="padding:8px;font-weight:700;background:var(--soft)">รวม (ไม่รวมงานที่ยกเลิก)</td><td style="${R2}">${fmt(tot.tg)}</td><td style="${R2}">${fmt(tot.g)}</td><td style="${R2}">${fmt(tot.net)}</td>
+    <div style="display:flex;gap:12px">${[["Target / มูลค่างาน",tot.tg],["ยอดขาย (inc. VAT)",tot.g],["กำไร/ขาดทุนสุทธิ",tot.np]].map(([l,v],i)=>`<div style="flex:1;border:1px solid var(--line);border-radius:10px;padding:10px 12px">
+      <div style="font-size:11px;color:var(--muted)">${l}</div><div style="font-family:var(--f-num);font-size:18px;font-weight:600;${i===2?`color:${tot.np<0?"var(--bad)":"var(--good)"}`:""}">฿${fmt(v)}</div></div>`).join("")}</div>
+    <table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>${th("#",1)}${th("วันที่")}${th("งาน / สถานที่")}${th("รูปแบบ")}${th("สถานะ")}${th("Target / มูลค่างาน",1)}${th("ยอดขาย (inc. VAT)",1)}${th("กำไร/ขาดทุน",1)}${th("%",1)}</tr></thead>
+    <tbody>${rows}<tr><td colspan="5" style="padding:8px;font-weight:700;background:var(--soft)">รวม (ไม่รวมงานที่ยกเลิก)</td><td style="${R2}">${fmt(tot.tg)}</td><td style="${R2}">${fmt(tot.g)}</td>
       <td style="${R2};color:${tot.np<0?"var(--bad)":"var(--good)"}">${fmt(tot.np)}</td><td style="${R2}">${pct(tot.np,tot.net)}</td></tr></tbody></table>
-    <div style="font-size:11px;color:var(--muted)">ยอดขายจริง/กำไร มาจาก P&amp;L ที่บันทึกแล้ว · ยอดขายสุทธิถอด VAT 7% · งานที่ยังไม่กรอกยอดแสดง “–”</div>
+    <div style="font-size:11px;color:var(--muted)">ยอดขาย/กำไร มาจาก P&amp;L ที่บันทึกแล้ว · % คิดจากยอดขายก่อน VAT 7% · งานที่ยังไม่กรอกยอดแสดง “–”</div>
   </div>`;
 }
 /* payments & slips (Catering) */
@@ -1154,6 +1155,9 @@ function bind(){
       const add=[];for(let d=new Date(a+"T00:00:00Z");d.toISOString().slice(0,10)<=b&&add.length<=366;d.setUTCDate(d.getUTCDate()+1))add.push(d.toISOString().slice(0,10));return add};
     const showPreview=()=>{const el=$("#datePreview"),r=pendingRange();if(!el)return;el.hidden=!r;if(r)el.textContent=`จะเพิ่ม ${rangeLabel([r[0],r[r.length-1]])} (${r.length} วัน) · กด “ยืนยันวันที่”`};
     on("#f-d-from,#f-d-to","change",showPreview);on("#f-d-from,#f-d-to","input",showPreview);
+    if($("#moreDate"))$("#moreDate").onclick=()=>{const r=pendingRange();
+      if(r){readForm();S.draft.dates=[...new Set([...S.draft.dates.filter(Boolean),...r])].sort();toast(`เพิ่ม ${r.length} วันแล้ว เลือกช่วงถัดไปได้เลย`);render()}
+      const f=$("#f-d-from"),t=$("#f-d-to");if(f){f.value="";t.value="";f.focus();try{f.showPicker()}catch(_){}}};
     $("#addDate").onclick=()=>{readForm();const a=$("#f-d-from").value,b=$("#f-d-to").value||a;
       if(!a){toast("เลือกวันที่เริ่มก่อน");return}if(b<a){toast("วันที่สิ้นสุดต้องไม่ก่อนวันเริ่ม");return}
       const add=pendingRange();if(add.length>366){toast("ช่วงวันที่ยาวเกิน 1 ปี");return}
