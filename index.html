@@ -34,18 +34,19 @@
 
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55;
-  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 48px}
+  padding-left:max(var(--gut),env(safe-area-inset-left,0px));padding-right:max(var(--gut),env(safe-area-inset-right,0px));padding-block:0 48px}
 h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.25}
 h1{font-size:1.6rem} h2{font-size:1.25rem} h3{font-size:1.02rem}
 .num{font-family:var(--f-num);font-variant-numeric:tabular-nums;font-size:.92em}
 .muted{color:var(--muted)}
+:root{--gut:16px}
 .wrap{max-width:1440px;margin:0 auto}
+.pl>*{min-width:0}
 .grid.kpis{grid-template-columns:repeat(4,minmax(0,1fr))}
 .panel.kpi{padding:14px 16px;display:flex;flex-direction:column;gap:2px;min-width:0}
 .kpi .kv-num{font-size:1.45rem;font-weight:600;overflow-wrap:anywhere}
 @media (max-width:820px){.grid.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:520px){
-  body{padding-left:max(10px,env(safe-area-inset-left,0px));padding-right:max(10px,env(safe-area-inset-right,0px))}
   main{gap:12px;padding-top:12px}
   .grid.kpis{gap:8px}
   main .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
@@ -53,6 +54,30 @@ h1{font-size:1.6rem} h2{font-size:1.25rem} h3{font-size:1.02rem}
   main .kv{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 14px}
   main .kv .wide{grid-column:1/-1}
   main .sheet-head h1{font-size:1.6rem}
+  :root{--gut:10px}
+  .bar .tabs{flex-wrap:wrap;overflow:visible;gap:0 2px}
+  .tabs .tab{padding:6px 9px 7px;font-size:.88rem}
+  .evtabs-wrap .evtabs{gap:0}
+  .evtabs .evtab{flex:1 1 0;padding:10px 4px;font-size:.86rem;white-space:normal;line-height:1.25}
+  .sheet-head>div:last-child{text-align:left!important;width:100%}
+  .sheet-head .row{justify-content:flex-start!important}
+  .mp-pop{position:fixed!important;left:12px!important;right:12px!important;top:120px!important;width:auto!important}
+  .tbl-wrap:has(> table.rt){overflow:visible;background:var(--surface)}
+  table.rt,table.rt tbody{display:block;width:100%}
+  table.rt thead{display:none}
+  table.rt tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 12px;padding:10px 12px;border-top:1px solid var(--line)}
+  table.rt tr:first-child{border-top:0}
+  table.rt td{display:block;padding:0!important;border:0!important;text-align:left!important;min-width:0;white-space:normal;background:none}
+  table.rt td::before{content:attr(data-label);display:block;font-size:.68rem;letter-spacing:.04em;color:var(--muted);font-family:var(--f-body);font-weight:500}
+  table.rt td[data-label=""]::before,table.rt td:not([data-label])::before{display:none}
+  table.rt td:first-child{grid-column:1/-1}
+  table.rt td:first-child::before{display:none}
+  table.rt td:empty{display:none}
+  table.rt td input,table.rt td select{width:100%!important}
+  main table.rt tr.total{background:var(--brand-soft)}
+  main table.rt tr.total td{background:none!important}
+  main .tbl-wrap table:not(.rt) td:first-child{white-space:nowrap}
+  main label:has(#f-format){grid-column:1/-1}
   .panel.kpi{padding:12px;border-radius:16px}
   .kpi .kv-num{font-size:1.15rem}
   .kpi .muted{font-size:.74rem!important;line-height:1.35}
@@ -66,8 +91,8 @@ button{cursor:pointer}
 /* top bar */
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--brand)}
 .bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--brand);color:var(--brand-ink);
-  margin-left:calc(-1*max(16px,env(safe-area-inset-left,0px)));margin-right:calc(-1*max(16px,env(safe-area-inset-right,0px)))}
-.bar-in{max-width:1440px;margin:0 auto;padding:10px max(16px,env(safe-area-inset-right,0px)) 0 max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:8px}
+  margin-left:calc(-1*max(var(--gut),env(safe-area-inset-left,0px)));margin-right:calc(-1*max(var(--gut),env(safe-area-inset-right,0px)))}
+.bar-in{max-width:1440px;margin:0 auto;padding:10px max(var(--gut),env(safe-area-inset-right,0px)) 0 max(var(--gut),env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:8px}
 .bar-top{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .brandname{font-family:var(--f-display);font-weight:700;font-size:1.15rem;letter-spacing:.01em}
 .unit{font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;opacity:.8}
@@ -602,7 +627,7 @@ function render(){
   else if(S.view==="event")m.innerHTML=viewEvent();
   else if(S.view==="menus")m.innerHTML=viewMenus();
   else if(S.view==="users")m.innerHTML=viewUsers();
-  bind();
+  bind();labelTables();
   }finally{[S.isAdmin,S.canSales]=keep}
   try{document.documentElement.style.setProperty("--barh",($(".bar")?.offsetHeight||0)+"px")}catch(_){}
 }
@@ -675,7 +700,7 @@ function viewForm(){
     <div>
       <div class="sectionlabel" style="margin-bottom:6px">${isBooth(e)?"เมนูที่ขายในบูธ (ไม่บังคับ)":"เมนู / ชุดอาหาร (ทั้งงาน)"}</div>
       <datalist id="menuNames">${S.menus.map(m=>`<option value="${esc(m.name)}">`).join("")}</datalist>
-      <div class="tbl-wrap"><table class="line-tbl"><thead><tr><th>ชุด / เมนู</th><th class="r">ราคา/ชุด</th><th class="r">จำนวน</th><th class="r">รวม</th><th></th></tr></thead><tbody>
+      <div class="tbl-wrap"><table class="line-tbl rt"><thead><tr><th>ชุด / เมนู</th><th class="r">ราคา/ชุด</th><th class="r">จำนวน</th><th class="r">รวม</th><th></th></tr></thead><tbody>
       ${e.packages.map((p,i)=>`<tr><td><input id="f-pk-name-${i}" list="menuNames" data-pk="${i}" data-k="name" value="${esc(p.name)}" placeholder="เลือกจากเมนู หรือพิมพ์"></td>
         <td><input id="f-pk-price-${i}" type="number" data-pk="${i}" data-k="price" value="${esc(p.price)}" style="width:100px;text-align:right"></td>
         <td><input id="f-pk-qty-${i}" type="number" data-pk="${i}" data-k="qty" value="${esc(p.qty)}" style="width:90px;text-align:right"></td>
@@ -1018,7 +1043,7 @@ function viewOverall(){
     ${card("กรอกยอดแล้ว",`${all.done}/${brands.reduce((a,b)=>a+per[b].rows.length,0)} งาน`,all.net?`Food cost ${pct(all.cogs,all.net)}`:"")}
   </div>
   <section style="display:flex;flex-direction:column;gap:10px"><h2>แยกตามแบรนด์</h2>
-  <div class="tbl-wrap"><table><thead><tr><th>แบรนด์</th><th class="r">บูธ</th><th class="r">Catering</th><th class="r">Target / มูลค่างาน</th><th class="r">ยอดขาย (inc. VAT)</th><th class="r">% Target</th><th class="r">กำไร/ขาดทุน</th><th class="r">%</th><th class="r">สัดส่วนยอดขาย</th></tr></thead><tbody>
+  <div class="tbl-wrap"><table class="rt"><thead><tr><th>แบรนด์</th><th class="r">บูธ</th><th class="r">Catering</th><th class="r">Target / มูลค่างาน</th><th class="r">ยอดขาย (inc. VAT)</th><th class="r">% Target</th><th class="r">กำไร/ขาดทุน</th><th class="r">%</th><th class="r">สัดส่วนยอดขาย</th></tr></thead><tbody>
     ${brands.map(b=>{const x=per[b].t;return `<tr><td>${dot(b)}<b>${esc(BRANDS[b].name)}</b></td><td class="r num">${fmt(x.booth)}</td><td class="r num">${fmt(x.cat)}</td><td class="r num">${fmt(x.tg)}</td><td class="r num">${fmt(x.g)}</td><td class="r num">${pct(x.g,x.tg)}</td><td class="r num ${x.np<0?"neg":"pos"}">${fmt(x.np)}</td><td class="r num">${pct(x.np,x.net)}</td><td class="r num">${pct(x.g,all.g)}</td></tr>`}).join("")}
     <tr class="total"><td>รวม</td><td class="r num">${fmt(all.booth)}</td><td class="r num">${fmt(all.cat)}</td><td class="r num">${fmt(all.tg)}</td><td class="r num">${fmt(all.g)}</td><td class="r num">${pct(all.g,all.tg)}</td><td class="r num ${all.np<0?"neg":"pos"}">${fmt(all.np)}</td><td class="r num">${pct(all.np,all.net)}</td><td class="r num">${all.g?"100%":"–"}</td></tr>
   </tbody></table></div></section>
@@ -1047,7 +1072,7 @@ function viewOverall(){
       <td class="r num">${r.a?fmt(r.a.gross):"–"}</td><td class="r num ${r.a?(n(r.a.np)<0?"neg":"pos"):""}">${r.a?fmt(r.a.np):"–"}</td><td class="r num">${r.a?pct(r.a.np,r.a.net):"–"}</td></tr>`}).join("");
     return `<section style="display:flex;flex-direction:column;gap:10px"><div class="row" style="justify-content:space-between"><h2>รายละเอียดงาน</h2>
       <div class="row" style="gap:6px">${[["all","ทั้งหมด"],...brands.map(b=>[b,BRANDS[b].name])].map(([k,l])=>`<button type="button" class="fbtn" data-ovb="${k}" aria-pressed="${bf===k}">${l}</button>`).join("")}</div></div>
-      ${list.length?`<div class="tbl-wrap"><table><thead><tr><th>แบรนด์</th><th>วันที่</th><th>งาน</th><th>รูปแบบ</th><th>สถานะ</th><th class="r">Target / มูลค่างาน</th><th class="r">Budget กำไร</th><th class="r">ยอดขาย (inc. VAT)</th><th class="r">กำไร/ขาดทุน</th><th class="r">%</th></tr></thead><tbody>${body}
+      ${list.length?`<div class="tbl-wrap"><table class="rt"><thead><tr><th>แบรนด์</th><th>วันที่</th><th>งาน</th><th>รูปแบบ</th><th>สถานะ</th><th class="r">Target / มูลค่างาน</th><th class="r">Budget กำไร</th><th class="r">ยอดขาย (inc. VAT)</th><th class="r">กำไร/ขาดทุน</th><th class="r">%</th></tr></thead><tbody>${body}
       <tr class="total"><td colspan="5">รวม ${list.length} งาน</td><td class="r num">${fmt(T.tg)}</td><td class="r num">${fmt(T.bnp)}</td><td class="r num">${fmt(T.g)}</td><td class="r num ${T.np<0?"neg":"pos"}">${fmt(T.np)}</td><td class="r num">${pct(T.np,T.net)}</td></tr></tbody></table></div>`:`<div class="empty">ไม่มีงานในปีนี้</div>`}
     </section>`})()}
   <p class="muted" style="margin:0;font-size:.8rem">ยอดขาย/กำไร มาจาก P&amp;L ที่บันทึกแล้ว · % คิดจากยอดขายก่อน VAT · บูธนับตามวันที่ออกบูธ · Catering นับตามวันแรก · ไม่รวมงานที่ยกเลิก${S.allAt?` · ข้อมูล ณ ${S.allAt.toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit"})}`:""}</p>`;
@@ -1084,7 +1109,7 @@ function viewDash(){
       <button class="btn sec small" data-dm="-1" type="button" aria-label="เดือนก่อน">‹</button>
       <div style="position:relative">
         <button class="btn sec small" id="mpToggle" type="button" aria-expanded="${!!S.mpOpen}" aria-label="เลือกเดือน" style="display:inline-flex;align-items:center;gap:8px;padding:7px 12px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16.5" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/><path d="M7.5 13.5h2M11 13.5h2M14.5 13.5h2M7.5 17h2M11 17h2"/></svg><span>${TH_M[+ym.slice(5)-1]} ${+ym.slice(0,4)+543}</span></button>
-        ${S.mpOpen?(()=>{const y=S.mpYear||+ym.slice(0,4);return `<div class="panel" role="dialog" aria-label="เลือกเดือน" style="position:absolute;right:0;top:calc(100% + 8px);z-index:6;width:280px;padding:12px;display:flex;flex-direction:column;gap:10px">
+        ${S.mpOpen?(()=>{const y=S.mpYear||+ym.slice(0,4);return `<div class="panel mp-pop" role="dialog" aria-label="เลือกเดือน" style="position:absolute;right:0;top:calc(100% + 8px);z-index:6;width:280px;padding:12px;display:flex;flex-direction:column;gap:10px">
           <div class="row" style="justify-content:space-between"><button class="btn sec small" data-mpy="-1" type="button" aria-label="ปีก่อน">‹</button><b>${y+543}</b><button class="btn sec small" data-mpy="1" type="button" aria-label="ปีถัดไป">›</button></div>
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">${TH_M.map((m,i)=>{const v=y+"-"+String(i+1).padStart(2,"0");return `<button type="button" class="fbtn" data-mpm="${v}" aria-pressed="${v===ym}" style="padding:8px 4px">${m}</button>`}).join("")}</div>
         </div>`})():""}
@@ -1116,7 +1141,7 @@ function viewDash(){
         <div style="position:absolute;inset:3px auto 3px 0;width:${(g/max*100).toFixed(2)}%;background:var(--brand-2);border-radius:3px"></div></div>
       <div class="num" style="text-align:right">${r.a?fmt(g):"–"}</div></div>`}).join("")}
   </section>
-  <div class="tbl-wrap"><table><thead><tr><th>วันที่ (ในเดือน)</th><th>งาน</th><th>รูปแบบ</th><th class="r">Target / มูลค่างาน</th><th class="r">ยอดขาย (inc. VAT)</th><th class="r">กำไร/ขาดทุน</th><th class="r">%</th></tr></thead><tbody>
+  <div class="tbl-wrap"><table class="rt"><thead><tr><th>วันที่ (ในเดือน)</th><th>งาน</th><th>รูปแบบ</th><th class="r">Target / มูลค่างาน</th><th class="r">ยอดขาย (inc. VAT)</th><th class="r">กำไร/ขาดทุน</th><th class="r">%</th></tr></thead><tbody>
     ${rows.map(r=>`<tr data-open="${esc(r.e.id)}" style="cursor:pointer"><td>${datesText(r.days)}${r.days.length>1?` <span class="muted">(${r.days.length} วัน)</span>`:""}</td><td><b>${esc(r.e.customer)}</b><div class="muted" style="font-size:.8rem">${esc(r.e.venue)}</div></td><td>${esc(r.e.format)}</td>
       <td class="r num">${fmt(r.tg)}</td><td class="r num">${r.a?fmt(r.a.gross):"–"}</td>
       <td class="r num ${r.a?(n(r.a.np)<0?"neg":"pos"):""}">${r.a?fmt(r.a.np):"–"}</td><td class="r num">${r.a?pct(r.a.np,r.a.net):"–"}</td></tr>`).join("")}
@@ -1227,7 +1252,7 @@ function dayPL(e,d){
     :!S.canSales?`<div class="notice info">${S.jobLocked?"ปิดงานแล้ว · แก้ไขไม่ได้":"ดูอย่างเดียว เฉพาะOps.Teamที่บันทึกได้"}</div>`
     :!pl._saved?`<div class="notice warn">ยังไม่ได้บันทึกวันนี้ กรอก${what}จริงแล้วกดบันทึก</div>`:"";
   const salesBlock=booth?null:`<div><div class="sectionlabel" style="margin-bottom:6px">ยอดขายตามใบคอนเฟิร์ม · ขายขาด (ไม่ต้องกรอก)</div>
-    <div class="tbl-wrap"><table><thead><tr><th>เมนู</th><th class="r">ราคา</th><th class="r">จำนวน</th><th class="r">ยอดขาย</th><th class="r">ต้นทุน/หน่วย</th></tr></thead><tbody>
+    <div class="tbl-wrap"><table class="rt"><thead><tr><th>เมนู</th><th class="r">ราคา</th><th class="r">จำนวน</th><th class="r">ยอดขาย</th><th class="r">ต้นทุน/หน่วย</th></tr></thead><tbody>
     ${eff.sales.map(s=>{const cost=menuCost(menuFor(s));return `<tr><td>${esc(s.name)}</td><td class="r num">${fmt(s.price,2)}</td><td class="r num">${fmt(s.qty)}</td><td class="r num">${fmt(n(s.price)*n(s.qty),2)}</td><td class="r num">${cost?fmt(cost,2):`<span class="flag">ไม่มี BOM</span>`}</td></tr>`}).join("")}
     ${eff.cateringFee?`<tr><td>ค่าบริการ Catering</td><td></td><td></td><td class="r num">${fmt(eff.cateringFee,2)}</td><td></td></tr>`:""}
     </tbody></table></div></div>`;
@@ -1292,7 +1317,7 @@ function fcPanel(atEnd){
   const html=`<section class="panel" style="display:flex;flex-direction:column;gap:10px">
     <div class="row" style="justify-content:space-between"><div><h2>Fixed cost Booth</h2><p class="muted" style="margin:2px 0 0;font-size:.85rem">ใช้คำนวณ Feasibility ของงาน Booth ในแบรนด์ ${esc(BRANDS[S.brand].name)}${fcMissing()?" · ยังกรอกไม่ครบ":""}</p></div>
       ${S.isAdmin?`<button class="btn small" id="saveFc" type="button">บันทึก Fixed cost</button>`:""}</div>
-    <div class="tbl-wrap"><table><thead><tr><th>รายการ</th><th class="r">ค่า</th><th>หน่วย</th><th>ที่มา</th></tr></thead><tbody>
+    <div class="tbl-wrap"><table class="rt"><thead><tr><th>รายการ</th><th class="r">ค่า</th><th>หน่วย</th><th>ที่มา</th></tr></thead><tbody>
     ${FC_ROWS.map(([k,l,u,src])=>`<tr><td>${l}</td><td class="r"><input id="fc-${k}" type="number" step="any" value="${f[k]===null||f[k]===undefined||f[k]===""?"":k==="foodPct"?+(n(f[k])*100).toFixed(4):esc(f[k])}" placeholder="กรอก" style="width:110px;text-align:right" ${dis}></td><td class="muted">${u}</td><td class="muted">${src}</td></tr>`).join("")}
     <tr class="total"><td>ค่า OT ต่อชั่วโมง (คำนวณ)</td><td class="r num">${fmt(n(f.wage)/8*n(f.otRate),3)}</td><td class="muted">บาท</td><td class="muted">ค่าแรงต่อวัน ÷ 8 ชม. × อัตรา OT</td></tr>
     </tbody></table></div></section>`;
@@ -1305,7 +1330,7 @@ function viewMenus(){
   if(S.editMenu!==null)return head+menuEditor();
   if(!S.mnReady)return head+`<div class="empty">กำลังโหลดเมนู…</div>`;
   if(!S.menus.length)return head+`<div class="empty">ยังไม่มีเมนู${S.isAdmin?"<br>เพิ่มเมนูพร้อม BOM เพื่อให้ P&amp;L คำนวณต้นทุนได้":""}</div>`+(inlineFc()?"":fcPanel());
-  return head+(inlineFc()?"":fcPanel(true))+`<div class="tbl-wrap"><table><thead><tr><th>เมนู / ชุด</th><th class="r">ราคาขาย</th><th class="r">ราคาไม่รวม VAT</th><th class="r">ต้นทุน BOM</th><th class="r">Food cost %</th><th class="r">วัตถุดิบ</th><th></th></tr></thead><tbody>
+  return head+(inlineFc()?"":fcPanel(true))+`<div class="tbl-wrap"><table class="rt"><thead><tr><th>เมนู / ชุด</th><th class="r">ราคาขาย</th><th class="r">ราคาไม่รวม VAT</th><th class="r">ต้นทุน BOM</th><th class="r">Food cost %</th><th class="r">วัตถุดิบ</th><th></th></tr></thead><tbody>
   ${[...S.menus].sort((a,b)=>a.name.localeCompare(b.name,"th")).map(m=>{const c=menuCost(m),ex=n(m.price)/(1+VAT);return `<tr>
     <td><b>${esc(m.name)}</b></td><td class="r num">${fmt(m.price,2)}</td><td class="r num">${fmt(ex,2)}</td>
     <td class="r num">${c?fmt(c,2):`<span class="flag">ยังไม่ใส่ต้นทุน</span>`}</td><td class="r num">${c?pct(c,ex):"–"}</td>
@@ -1320,7 +1345,7 @@ function menuEditor(){
     <div class="grid"><label>ชื่อเมนู / ชุด<input id="m-name" value="${esc(m.name)}" ${dis}></label>
     <label>ราคาขาย (รวม VAT)<input id="m-price" type="number" value="${esc(m.price)}" ${dis}></label></div>
     <div><div class="sectionlabel" style="margin-bottom:6px">BOM ต่อ 1 หน่วยขาย</div>
-    <div class="tbl-wrap"><table class="line-tbl"><thead><tr><th>วัตถุดิบ / ส่วนประกอบ</th><th class="r">ปริมาณ</th><th>หน่วย</th><th class="r">ต้นทุน/หน่วย</th><th class="r">ต้นทุน</th><th></th></tr></thead><tbody>
+    <div class="tbl-wrap"><table class="line-tbl rt"><thead><tr><th>วัตถุดิบ / ส่วนประกอบ</th><th class="r">ปริมาณ</th><th>หน่วย</th><th class="r">ต้นทุน/หน่วย</th><th class="r">ต้นทุน</th><th></th></tr></thead><tbody>
     ${m.bom.map((b,i)=>`<tr><td><input id="m-b-i-${i}" value="${esc(b.ingredient)}" ${dis}></td>
       <td><input id="m-b-q-${i}" type="number" step="any" value="${esc(b.qty)}" style="width:80px;text-align:right" ${dis}></td>
       <td><input id="m-b-u-${i}" value="${esc(b.unit)}" style="width:80px" placeholder="g, ชิ้น" ${dis}></td>
@@ -1351,7 +1376,7 @@ function viewUsers(){
     <label>เพิ่มผู้ใช้ (ค้นหาชื่อหรืออีเมลของคนที่สมัครแล้ว)<input id="uSearch" autocomplete="off" placeholder="พิมพ์ชื่อ…"></label>
     <div id="uResults" style="display:flex;flex-direction:column;gap:4px"></div>
   </div>
-  ${ids.length?`<div class="tbl-wrap"><table><thead><tr><th>ผู้ใช้</th>${Object.keys(BRANDS).map(b=>`<th>${esc(BRANDS[b].name)}</th>`).join("")}<th>สิทธิ์</th><th></th></tr></thead><tbody>
+  ${ids.length?`<div class="tbl-wrap"><table class="rt"><thead><tr><th>ผู้ใช้</th>${Object.keys(BRANDS).map(b=>`<th>${esc(BRANDS[b].name)}</th>`).join("")}<th>สิทธิ์</th><th></th></tr></thead><tbody>
   ${ids.map(id=>{const m=S.members[id];if(m.role==="owner"||id===S.uid)return `<tr><td><span data-uname="${esc(id)}">…</span></td>
     ${Object.keys(BRANDS).map(b=>`<td>${m.role==="owner"||(m.brands||[]).includes(b)?"✓":"–"}</td>`).join("")}
     <td class="muted">${m.role==="owner"?"เจ้าของระบบ":(ROLE_LABEL[m.role]||m.role)} · ${id===S.uid?"บัญชีของคุณ (แก้เองไม่ได้)":"แก้ได้ใน Supabase"}</td><td></td></tr>`;
@@ -1364,6 +1389,12 @@ function viewUsers(){
 }
 async function saveMembers(next,msg){
   if(await write(()=>S.db.doc("access/members").set({members:next,updatedAt:new Date().toISOString()}),msg)){S.members=next;S.confirmDel=null;render()}
+}
+function labelTables(){
+  document.querySelectorAll("#main table.rt").forEach(t=>{
+    const hs=[];t.querySelectorAll("thead th").forEach(th=>{const k=+(th.getAttribute("colspan")||1);for(let i=0;i<k;i++)hs.push(th.textContent.trim())});
+    t.querySelectorAll("tbody tr").forEach(tr=>{let i=0;[...tr.children].forEach(td=>{if(!td.hasAttribute("data-label"))td.setAttribute("data-label",hs[i]||"");i+=+(td.getAttribute("colspan")||1)})});
+  });
 }
 async function fillNames(){
   const els=[...document.querySelectorAll("[data-uname]")];if(!els.length||!S.user)return;
