@@ -11,7 +11,8 @@ declare
   esc_title text; esc_detail text;
 begin
   if new.type not in ('new','edit','del') then return new; end if;
-  select decrypted_secret into tok from vault.decrypted_secrets where name = 'telegram_bot_token' limit 1;
+  -- one bot per brand: telegram_bot_token_jaedang / telegram_bot_token_tsc
+  select decrypted_secret into tok from vault.decrypted_secrets where name = 'telegram_bot_token_' || new.brand limit 1;
   select decrypted_secret into chat from vault.decrypted_secrets where name = 'telegram_chat_' || new.brand limit 1;
   if chat is null then
     select decrypted_secret into chat from vault.decrypted_secrets where name = 'telegram_chat_id' limit 1;
@@ -41,13 +42,14 @@ drop trigger if exists activity_telegram on public.activity;
 create trigger activity_telegram after insert on public.activity
   for each row execute function public.notify_telegram();
 
--- ===== Step 2 (run separately, replace the values; do NOT share the token in chat) =====
--- select vault.create_secret('123456789:AA...your-bot-token...', 'telegram_bot_token');
--- One group for both brands:
--- select vault.create_secret('-1001234567890', 'telegram_chat_id');
--- Or a separate group per brand (optional, overrides the one above):
--- select vault.create_secret('-100...', 'telegram_chat_jaedang');
--- select vault.create_secret('-100...', 'telegram_chat_tsc');
+-- ===== Step 2 (run separately, replace the values; do NOT share tokens in chat) =====
+-- เจ๊แดง
+-- select vault.create_secret('BOT TOKEN ของเจ๊แดง', 'telegram_bot_token_jaedang');
+-- select vault.create_secret('CHAT ID กลุ่มเจ๊แดง', 'telegram_chat_jaedang');
+-- Top Secret Café
+-- select vault.create_secret('BOT TOKEN ของ TSC', 'telegram_bot_token_tsc');
+-- select vault.create_secret('CHAT ID กลุ่ม TSC', 'telegram_chat_tsc');
 --
 -- Test without opening the website:
 -- insert into public.activity (brand,type,event_id,title,detail,author) values ('jaedang','new','','ทดสอบแจ้งเตือน','Booth · ทดสอบ','');
+-- insert into public.activity (brand,type,event_id,title,detail,author) values ('tsc','new','','ทดสอบแจ้งเตือน','Booth · ทดสอบ','');
