@@ -295,6 +295,10 @@ const today=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth
 const TH_M=["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
 const dLabel=s=>{if(!s)return"";const[y,m,d]=s.split("-");return +d+" "+TH_M[+m-1]+" "+(+y+543-2500)};
 const sortedDates=e=>[...(e.dates||[])].filter(Boolean).sort();
+const LOCK_DAYS=7;
+const addDays=(d,k)=>{const[y,m,dd]=d.split("-").map(Number);const x=new Date(Date.UTC(y,m-1,dd+k));return x.toISOString().slice(0,10)};
+function lockInfo(e){const ds=sortedDates(e);if(!e||!ds.length||e.status==="cancelled"||e.status==="tbd")return null;const end=ds[ds.length-1],t=today();if(t<=end)return null;
+  const dl=addDays(end,LOCK_DAYS),left=Math.round((Date.parse(dl)-Date.parse(t))/864e5);return {end,deadline:dl,locked:t>dl,left}}
 function dateRanges(list){
   const ds=[...new Set(list.filter(Boolean))].sort(),out=[];
   const next=s=>{const d=new Date(s+"T00:00:00Z");d.setUTCDate(d.getUTCDate()+1);return d.toISOString().slice(0,10)};
@@ -439,7 +443,7 @@ function eventStatus(e){
   if(e.status==="tbd")return["live","รอกำหนดวัน"];
   const ds=sortedDates(e),t=today();
   if(!ds.length)return["ok","คอนเฟิร์มแล้ว"];
-  if(t>ds[ds.length-1])return["done","จบงานแล้ว"];
+  if(t>ds[ds.length-1])return["done",t>addDays(ds[ds.length-1],LOCK_DAYS)?"🔒 ปิดงานแล้ว":"จบงานแล้ว"];
   if(t>=ds[0])return["live","กำลังจัดงาน"];
   return["ok","คอนเฟิร์มแล้ว"];
 }
@@ -562,7 +566,10 @@ function render(){
   if((S.view==="users"||S.view==="menus")&&!S.isSys)S.view="events";
   if(S.view==="overall"&&!(S.isOwner||role==="management"))S.view="events";
   document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-current",(b.dataset.view===S.view||(S.view==="event"&&b.dataset.view==="events"))?"page":"false"));
-  const m=$("#main");
+  const m=$("#main"),keep=[S.isAdmin,S.canSales];
+  {const le=S.view==="event"?S.events.find(x=>x.id===S.eventId):S.view==="new"&&S.editEvent?S.editEvent:null,li=le&&lockInfo(le);
+   S.jobLocked=!!(li&&li.locked);if(S.jobLocked&&!S.isSys){S.isAdmin=false;S.canSales=false}}
+  try{
   if(S.view==="events")m.innerHTML=viewEvents();
   else if(S.view==="dash")m.innerHTML=viewDash();
   else if(S.view==="overall")m.innerHTML=viewOverall();
@@ -572,6 +579,7 @@ function render(){
   else if(S.view==="menus")m.innerHTML=viewMenus();
   else if(S.view==="users")m.innerHTML=viewUsers();
   bind();
+  }finally{[S.isAdmin,S.canSales]=keep}
   try{document.documentElement.style.setProperty("--barh",($(".bar")?.offsetHeight||0)+"px")}catch(_){}
 }
 
@@ -744,6 +752,9 @@ function viewEvent(){
       <button class="btn sec small" data-view="events" type="button" style="flex:none">← งานทั้งหมด</button>
       <div style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600">${esc(e.customer)}</div></div>${tabBar}</div>`
     :`<button class="btn sec small" data-view="events" type="button" style="align-self:flex-start">← งานทั้งหมด</button>`}
+  ${(()=>{const li=lockInfo(e);if(!li)return "";
+    if(li.locked)return `<div class="notice ${S.isSys?"warn":"info"}" style="margin:0">🔒 ปิดงานแล้ว · ครบ ${LOCK_DAYS} วันหลังจบงาน (กำหนดปิด ${dLabel(li.deadline)})${S.isSys?" · คุณเป็น Admin ยังแก้ไขได้":" · แก้ไขข้อมูลไม่ได้แล้ว ติดต่อ Admin หากต้องแก้"}</div>`;
+    return `<div class="notice warn" style="margin:0">จบงานแล้ว · กรอกยอดขาย/ค่าใช้จ่ายและปิดงานให้เสร็จภายใน ${dLabel(li.deadline)} (เหลือ ${li.left?li.left+" วัน":"วันนี้วันสุดท้าย"}) หลังจากนั้นจะแก้ไขไม่ได้</div>`})()}
   ${tab==="info"?`<section class="panel" style="display:flex;flex-direction:column;gap:16px">
     <div class="sheet-head"><div><div class="row" style="gap:8px"><span class="pill ${cls}">${lab}</span><span class="muted">${esc(e.format)}</span></div>
       <div class="sectionlabel" style="margin-top:6px">ลูกค้า/ผู้ติดต่อ</div><h1>${esc(e.customer)}</h1><div class="muted">${esc(e.venue)}</div>
@@ -1177,7 +1188,7 @@ function dayPL(e,d){
   const pl=S.draft,booth=isBooth(e),eff=effPL(e,d,pl),c=calcPL(e,eff),dis=canEdit?"":"disabled";
   const what=booth?"ยอดขายและค่าใช้จ่าย":"ค่าใช้จ่าย";
   const notice=!open?`<div class="notice info">กรอก${what}ได้ตั้งแต่วันงาน (${whole?dLabel(ds0):dLabel(d)}) ตัวเลขด้านล่างเป็นค่าตั้งต้น</div>`
-    :!S.canSales?`<div class="notice info">ดูอย่างเดียว เฉพาะOps.Teamที่บันทึกได้</div>`
+    :!S.canSales?`<div class="notice info">${S.jobLocked?"ปิดงานแล้ว · แก้ไขไม่ได้":"ดูอย่างเดียว เฉพาะOps.Teamที่บันทึกได้"}</div>`
     :!pl._saved?`<div class="notice warn">ยังไม่ได้บันทึกวันนี้ กรอก${what}จริงแล้วกดบันทึก</div>`:"";
   const salesBlock=booth?null:`<div><div class="sectionlabel" style="margin-bottom:6px">ยอดขายตามใบคอนเฟิร์ม · ขายขาด (ไม่ต้องกรอก)</div>
     <div class="tbl-wrap"><table><thead><tr><th>เมนู</th><th class="r">ราคา</th><th class="r">จำนวน</th><th class="r">ยอดขาย</th><th class="r">ต้นทุน/หน่วย</th></tr></thead><tbody>
