@@ -29,6 +29,7 @@ create table if not exists public.profiles (
   role       text not null default 'viewer'
              check (role in ('owner','sysadmin','admin','register','sales','management','viewer')),
   brands     text[] not null default '{}',
+  department text,                     -- marketing | operations | clevel (chosen at sign-up)
   created_at timestamptz not null default now()
 );
 
@@ -310,3 +311,5 @@ end $$;
 -- ---------- first owner ----------
 -- After you sign up in the app with your own email, run (replace the email):
 --   update public.profiles set role = 'owner', brands = '{jaedang,tsc}' where email = 'you@example.com';
+
+-- see department.sql for the sign-up department → role trigger

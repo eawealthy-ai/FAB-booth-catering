@@ -50,7 +50,7 @@
       <img class="logo" src="assets/fab-logo.png" alt="FAB">
       <h1>FAB Booth &amp; Catering</h1>
       <p class="sub">${signup ? "สมัครใช้งาน · รอผู้ดูแลกำหนดแบรนด์และสิทธิ์ให้" : reset ? "ลืมรหัสผ่าน · ระบบจะส่งลิงก์ตั้งรหัสใหม่ทางอีเมล" : "ระบบงานบูธและแคเทอริ่ง"}</p>
-      ${signup ? '<label>ชื่อ-นามสกุล<input id="bcName" autocomplete="name" required></label>' : ""}
+      ${signup ? '<label>ชื่อ-นามสกุล<input id="bcName" autocomplete="name" required></label><label>แผนก<select id="bcDept" required><option value="">เลือกแผนก…</option><option value="marketing">การตลาด</option><option value="operations">โอเปอเรชั่น</option><option value="clevel">C-level</option></select></label>' : ""}
       <label>อีเมล<input id="bcEmail" type="email" autocomplete="email" required></label>
       ${reset ? "" : `<label>รหัสผ่าน<input id="bcPass" type="password" autocomplete="${signup ? "new-password" : "current-password"}" minlength="6" required></label>`}
       ${msg ? `<p class="${ok ? "ok" : "err"}">${msg}</p>` : ""}
@@ -67,8 +67,9 @@
       const btn = el.querySelector('button[type="submit"]'); btn.disabled = true;
       try {
         if (signup) {
-          const name = el.querySelector("#bcName").value.trim();
-          const { data, error } = await sb.auth.signUp({ email, password: pass, options: { data: { full_name: name }, emailRedirectTo: location.href.split("#")[0] } });
+          const name = el.querySelector("#bcName").value.trim(), department = el.querySelector("#bcDept").value;
+          if (!department) { btn.disabled = false; return showLogin("signup", "กรุณาเลือกแผนก"); }
+          const { data, error } = await sb.auth.signUp({ email, password: pass, options: { data: { full_name: name, department }, emailRedirectTo: location.href.split("#")[0] } });
           if (error) throw error;
           if (!data.session) return showLogin("login", "สมัครแล้ว เปิดอีเมลเพื่อยืนยัน แล้วกลับมาเข้าสู่ระบบ", true);
         } else if (reset) {
@@ -209,7 +210,7 @@
     const m = {};
     (data || []).forEach(p => {
       profilesCache[p.id] = p;
-      if (p.role === "owner" || p.role !== "viewer" || (p.brands || []).length) m[p.id] = { brands: p.brands || [], role: p.role === "owner" ? "owner" : p.role };
+      if (p.role === "owner" || p.role !== "viewer" || (p.brands || []).length || p.department) m[p.id] = { brands: p.brands || [], role: p.role === "owner" ? "owner" : p.role, department: p.department || "" };
     });
     lastMembers = m;
     return m;
@@ -234,7 +235,7 @@
           const next = body.members || {}, prev = lastMembers;
           for (const [uid, v] of Object.entries(next)) {
             if (v.role === "owner") continue;
-            const { error } = await sb.from("profiles").update({ role: v.role || "viewer", brands: v.brands || [] }).eq("id", uid);
+            const { error } = await sb.from("profiles").update({ role: v.role || "viewer", brands: v.brands || [], department: v.department || null }).eq("id", uid);
             if (error) throw err(error);
           }
           for (const uid of Object.keys(prev)) if (!next[uid] && prev[uid].role !== "owner") {
