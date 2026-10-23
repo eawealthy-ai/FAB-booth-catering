@@ -17,6 +17,9 @@
     auth: { storage: sessStore, persistSession: !!sessStore, autoRefreshToken: true, detectSessionInUrl: true },
   });
   window.SB = sb;
+  window.bcLogin = () => showLogin("login");
+  const EVENTS_PUBLIC = "id,brand,format,customer,dates,serve_from,serve_to,venue,map_url,guests,packages,distribution_note,catering_fee_per_day,feas,feas_fc,vat_included,status,note,paid,actual,created_by,created_at,updated_at,unlock_until";
+  const cols = t => (!session && t === "events") ? EVENTS_PUBLIC : "*";
 
   /* ---------------- auth gate ---------------- */
   let session = null, me = null, profilesCache = {};
@@ -58,7 +61,7 @@
       <div class="row" style="justify-content:space-between;gap:8px;font-size:.88rem">
         ${signup || reset ? '<button class="link" type="button" data-m="login">กลับไปหน้าเข้าสู่ระบบ</button>'
           : '<button class="link" type="button" data-m="signup">สมัครใช้งาน</button><button class="link" type="button" data-m="reset">ลืมรหัสผ่าน</button>'}
-      </div><div class="foot">© 2026 Operation FAB</div></form>`;
+      </div>${guestBooted ? '<button class="link" type="button" data-bc-close style="align-self:center">← กลับไปดูข้อมูลโดยไม่เข้าสู่ระบบ</button>' : ""}<div class="foot">© 2026 Operation FAB</div></form>`;
     el.hidden = false;
     el.querySelectorAll("[data-m]").forEach(b => (b.onclick = () => showLogin(b.dataset.m)));
     el.querySelector("form").onsubmit = async ev => {
@@ -92,8 +95,11 @@
     profilesCache[me.id] = me;
   }
 
+  let guestBooted = false;
+  function bootGuest() { if (guestBooted || session) return; guestBooted = true; resolveAuth(); }
   async function onSession(s) {
-    if (!s) { session = null; showLogin("login"); return; }
+    if (!s) { session = null; bootGuest(); return; }
+    if (guestBooted) { location.reload(); return; }   // signed in from guest mode → restart as a member
     const first = !session; session = s;
     if (!first) return;
     await loadMe();
@@ -123,10 +129,14 @@
   }
   document.addEventListener("DOMContentLoaded", async () => {
     const { data } = await sb.auth.getSession();
-    if (!data.session) showLogin("login"); else onSession(data.session);
+    if (!data.session) bootGuest(); else onSession(data.session);
   });
   document.addEventListener("click", ev => {
-    if (ev.target.closest("#logoutBtn")) { try { localStorage.removeItem("bc.brand"); } catch (_) {} sb.auth.signOut(); }
+    if (ev.target.closest("#logoutBtn")) {
+      if (!session) { showLogin("login"); return; }
+      try { localStorage.removeItem("bc.brand"); } catch (_) {} sb.auth.signOut();
+    }
+    if (ev.target.closest("[data-bc-close]")) { const el = document.getElementById("bcLogin"); if (el) el.hidden = true; }
   });
 
   /* ---------------- path → table mapping ---------------- */
@@ -225,7 +235,7 @@
       async get() {
         if (p.kind === "members") return snapDoc("members", { members: await fetchMembers() });
         const t = TABLES[p.kind];
-        const { data, error } = await sb.from(t.table).select("*").match(p.match).maybeSingle();
+        const { data, error } = await sb.from(t.table).select(cols(t.table)).match(p.match).maybeSingle();
         if (error) throw err(error);
         return snapDoc(id, data ? fromRow(p.kind, data) : null);
       },
@@ -289,7 +299,7 @@
       limit(n) { return collRef(path, { ...opts, limit: n }); },
       async get() {
         const t = TABLES[p.kind];
-        let q = sb.from(t.table).select("*").match(p.match || {});
+        let q = sb.from(t.table).select(cols(t.table)).match(p.match || {});
         if (opts.order) q = q.order(toSnakeKey(p.kind, opts.order.field), { ascending: opts.order.dir !== "desc" });
         if (opts.limit) q = q.limit(opts.limit);
         const { data, error } = await q;
@@ -322,6 +332,7 @@
   }
   const user = {
     async isOwner() { return me?.role === "owner"; },
+    async isGuest() { return !session; },
     async canEdit() { return true; },           // permissions are enforced by Postgres RLS
     async can() { return null; },
     async id() { return session?.user?.id || null; },

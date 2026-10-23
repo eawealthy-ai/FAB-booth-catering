@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <link rel="icon" href="assets/fab-logo.png">
+<meta name="robots" content="noindex,nofollow">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
@@ -564,20 +565,21 @@ async function boot(){
   try{
     const [db,user]=await Promise.all([claude.use("db"),claude.use("user")]);
     S.db=db;S.user=user;
-    if(user){S.isOwner=await user.isOwner();S.levelAdmin=await user.canEdit();S.uid=await user.id()}
+    if(user){S.isOwner=await user.isOwner();S.levelAdmin=await user.canEdit();S.uid=await user.id();S.guest=user.isGuest?await user.isGuest():false}
   }catch(e){}
   claude.use("downloads").then(d=>{S.downloads=d;if(S.brand)rerender()}).catch(()=>{});
   claude.use("assets").then(a=>{S.assets=a;if(S.view==="event"||S.view==="new")rerender()}).catch(()=>{});
   S.platformReady=true;
+  if(S.guest&&S.db){S.accessReady=true;S.members={};applyAccess();return}
   if(!S.db||!S.uid){S.accessReady=true;showGate();return}
   S.db.doc("access/members").onSnapshot(d=>{S.members=(d.exists&&d.data().members)||{};S.accessReady=true;applyAccess()},
     ()=>{S.accessReady=true;applyAccess()});
 }
 function allowedBrands(){
-  if(S.isOwner||myRole()==="management")return Object.keys(BRANDS);
+  if(S.guest||S.isOwner||myRole()==="management")return Object.keys(BRANDS);
   const m=S.uid&&S.members[S.uid];return m?(m.brands||[]).filter(b=>BRANDS[b]):[];
 }
-function myRole(){if(S.isOwner)return"owner";const m=S.uid&&S.members[S.uid];return m?m.role:null}
+function myRole(){if(S.guest)return"guest";if(S.isOwner)return"owner";const m=S.uid&&S.members[S.uid];return m?m.role:null}
 function applyAccess(){
   const al=allowedBrands(),role=myRole();
   S.isSys=S.isOwner||(role==="sysadmin"&&!!S.levelAdmin);
@@ -632,6 +634,7 @@ async function write(fn,okMsg){
 
 /* ---------- navigation ---------- */
 function showGate(){
+  document.querySelectorAll("#logoutBtn").forEach(b=>b.textContent=S.guest?"เข้าสู่ระบบ":"ออกจากระบบ");
   S.brand=null;document.body.removeAttribute("data-brand");$("#gate").hidden=false;$("#app").hidden=true;
   const al=S.accessReady?allowedBrands():[],msg=$("#gateMsg");
   $("#brandPick").innerHTML=al.map(b=>`<button class="bp ${b==="tsc"?"bp-tsc":"bp-jd"}" data-pick="${b}" type="button"><span class="unit">Catering · Booth</span><b>${esc(BRANDS[b].name)}</b></button>`).join("");
@@ -646,8 +649,10 @@ function enterBrand(b){
 }
 document.addEventListener("click",ev=>{
   const p=ev.target.closest("[data-pick]");if(p){enterBrand(p.dataset.pick);return}
+  if(ev.target.closest("[data-login]")){if(window.bcLogin)window.bcLogin();return}
   const h=ev.target.closest("[data-home]");if(h){const k=h.dataset.home;
-    if(k==="sales")goSales();
+    if(k==="login"){if(window.bcLogin)window.bcLogin()}
+    else if(k==="sales"){if(!needLogin("เข้าสู่ระบบก่อนเพื่อกรอกยอดขาย"))goSales()}
     else if(k==="cal"){S.calMonth=today().slice(0,7);S.calDay=null;go("events")}
     else if(k==="pdf"){go("events");setTimeout(()=>{const b=$("#pdfAll");if(b)b.click()},60)}
     else if(k==="switch")$("#switchBrand").click();
@@ -659,7 +664,10 @@ document.addEventListener("click",ev=>{
 $("#switchBrand").onclick=()=>{leaveBrand();ls("bc.brand",null);showGate()};
 $("#hdrBell").onclick=()=>go("notif");
 $("#hdrPower").onclick=()=>{const b=document.querySelector("header #logoutBtn");if(b)b.click()};
+const GUEST_BLOCK=["new","notif","menus","users","overall"];
+function needLogin(msg){if(!S.guest)return false;toast(msg||"เข้าสู่ระบบก่อนเพื่อใช้งานส่วนนี้");if(window.bcLogin)window.bcLogin();return true}
 function go(view,opts={}){
+  if(S.guest&&GUEST_BLOCK.includes(view)){needLogin(view==="new"?"เข้าสู่ระบบก่อนเพื่อเพิ่ม event":null);return}
   if(view==="overall")S.allEvents=null;
   if(view==="notif"||S.view==="notif")S.notifPrevSeen=undefined;
   S.view=view;S.confirmDel=null;S.draft=null;
@@ -675,7 +683,10 @@ function render(){
   $("#brandName").textContent=BRANDS[S.brand].name;
   const role=myRole();
   const pend=!S.isOwner&&role&&role!=="viewer"&&!S.levelAdmin;
-  $("#roleChip").textContent=S.isOwner?"เจ้าของระบบ":pend?"ดูอย่างเดียว (รอสิทธิ์ Editor)":(ROLE_LABEL[role]||"ดูอย่างเดียว");
+  document.querySelectorAll("#logoutBtn").forEach(b=>b.textContent=S.guest?"เข้าสู่ระบบ":"ออกจากระบบ");
+  $("#hdrPower").setAttribute("aria-label",S.guest?"เข้าสู่ระบบ":"ออกจากระบบ");$("#hdrPower").innerHTML=S.guest?'<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4"/><path d="M10 16l4-4-4-4M14 12H4"/></svg>':'<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 3v8"/><path d="M6.4 6.6a8 8 0 1 0 11.2 0"/></svg>';
+  $("#tabNotif").hidden=!!S.guest;$("#hdrBell").hidden=!!S.guest;
+  $("#roleChip").textContent=S.guest?"ผู้เยี่ยมชม · ดูอย่างเดียว":S.isOwner?"เจ้าของระบบ":pend?"ดูอย่างเดียว (รอสิทธิ์ Editor)":(ROLE_LABEL[role]||"ดูอย่างเดียว");
   $("#tabNew").hidden=!S.isAdmin;
   $("#tabUsers").hidden=!S.isSys;
   $("#tabOverall").hidden=!(S.isOwner||role==="management");
@@ -761,15 +772,16 @@ function goSales(){const tb=todayBooths();
 function homeItems(){
   const role=myRole(),it=[];
   it.push(["events","list","งานทั้งหมด"],["cal","cal","ปฏิทินงาน"]);
-  if(S.isAdmin)it.push(["new","plus","Add new event"]);
-  if(S.canSales)it.push(["sales","pos","กรอกยอดขาย"]);
+  if(S.isAdmin||S.guest)it.push(["new","plus","Add new event"]);
+  if(S.canSales||S.guest)it.push(["sales","pos","กรอกยอดขาย"]);
   it.push(["dash","chart","Dashboard"]);
   if(S.isOwner||role==="management")it.push(["overall","pie","ภาพรวม 2 แบรนด์"]);
-  it.push(["notif","bell","แจ้งเตือน"]);
+  if(!S.guest)it.push(["notif","bell","แจ้งเตือน"]);
   if(S.downloads)it.push(["pdf","pdf","Export PDF สรุปงาน"]);
   const other=[];
   if(S.isSys)other.push(["menus","book","เมนู & BOM"],["users","users","ผู้ใช้ & สิทธิ์"]);
   if(allowedBrands().length>1)other.push(["switch","swap","เปลี่ยนแบรนด์"]);
+  if(S.guest)other.push(["login","power","เข้าสู่ระบบ"]);
   return {it,other};
 }
 function viewHome(){
@@ -792,10 +804,10 @@ function viewHome(){
     ${upcoming.map(e=>{const ds=sortedDates(e),[cls,lab]=eventStatus(e);return `<button class="panel hk-next" data-open="${esc(e.id)}" type="button"><div><b>${esc(e.customer)}</b><div class="muted" style="font-size:.85rem">${esc(e.format)} · ${datesText(ds)}</div></div><span class="pill ${cls}">${lab}</span></button>`}).join("")}</section>`:""}`;
 }
 function bottomNav(u){
-  const role=myRole(),c=S.isAdmin?["new","plus","Add event"]:S.canSales?["sales","pos","กรอกยอด"]:["events","list","งาน"];
+  const role=myRole(),c=S.isAdmin||S.guest?["new","plus","Add event"]:S.canSales?["sales","pos","กรอกยอด"]:["events","list","งาน"];
   const v=S.view==="event"?"events":S.view;
   const b=(k,ic,l)=>`<button class="bn${v===k||(k==="events"&&v==="events")?" on":""}" data-home="${k}" type="button">${ico(ic,22)}<span>${l}</span>${k==="notif"&&u?`<span class="nbadge">${u>99?"99+":u}</span>`:""}</button>`;
-  return b("home","home","หน้าแรก")+b("events","list","งานทั้งหมด")+`<button class="bn-c" data-home="${c[0]}" type="button" aria-label="${c[2]}"><span>${ico(c[1],28)}</span><em>${c[2]}</em></button>`+b("dash","chart","Dashboard")+b("notif","bell","แจ้งเตือน");
+  return b("home","home","หน้าแรก")+b("events","list","งานทั้งหมด")+`<button class="bn-c" data-home="${c[0]}" type="button" aria-label="${c[2]}"><span>${ico(c[1],28)}</span><em>${c[2]}</em></button>`+b("dash","chart","Dashboard")+(S.guest?b("login","power","เข้าสู่ระบบ"):b("notif","bell","แจ้งเตือน"));
 }
 
 /* event calendar */
@@ -981,7 +993,7 @@ function viewEvent(){
       <div class="row" style="justify-content:flex-end;margin-top:6px">${S.downloads?`<button class="btn small" id="pdfEv" type="button">Export PDF</button>`:""}${S.isAdmin?`<button class="btn sec small" id="editEv" type="button">แก้ไข</button><button class="btn sec small" id="delEv" type="button">ลบ</button>`:""}</div></div></div>
     ${confirmDel?`<div class="confirm">ลบงานนี้ถาวร? ข้อมูล P&amp;L ของงานจะถูกซ่อนไปด้วย <button class="btn small" id="delYes" type="button">ลบเลย</button><button class="btn sec small" id="delNo" type="button">ไม่ลบ</button></div>`:""}
     <dl class="kv" style="margin:0">
-      <div><dt>โทร</dt><dd>${e.phone?`<span style="user-select:all">${esc(e.phone)}</span>`:"–"}</dd></div>
+      ${S.guest?"":`<div><dt>โทร</dt><dd>${e.phone?`<span style="user-select:all">${esc(e.phone)}</span>`:"–"}</dd></div>`}
       <div><dt>วันที่</dt><dd>${datesText(ds)||"–"}${ds.length>1?` <span class="muted">(${ds.length} วัน)</span>`:""}</dd></div>
       <div><dt>เวลาเสิร์ฟ</dt><dd>${timeText(e)}</dd></div>
       ${isBooth(e)?"":`<div><dt>จำนวนแขก</dt><dd>${fmt(e.guests)} ท่าน</dd></div>`}
@@ -995,8 +1007,8 @@ function viewEvent(){
   ${tab==="pl"&&S.downloads?`<div class="row" style="justify-content:flex-end"><button class="btn" id="pdfPL" type="button">Export PDF</button></div>`:""}
   ${isBooth(e)&&tab==="info"?`<section style="display:flex;flex-direction:column;gap:10px"><h2>Feasibility บูธ</h2>${feasPanel(e,calcFeas(e))}
     <p class="muted" style="margin:0;font-size:.82rem">${inlineFc()?"คิดจากค่าใช้จ่ายที่กรอกไว้ในงานนี้ · กดแก้ไขงานเพื่อเปลี่ยนตัวเลข":"คิดจาก Fixed cost Booth ณ วันที่บันทึกงาน · กดแก้ไขงานเพื่อคำนวณใหม่ด้วยค่าปัจจุบัน"}</p></section>`:""}
-  ${!isBooth(e)&&tab==="info"?viewPayments(e):""}
-  ${tab==="info"?viewUpdates(e):""}
+  ${!isBooth(e)&&tab==="info"&&!S.guest?viewPayments(e):""}
+  ${tab==="info"&&!S.guest?viewUpdates(e):""}
   ${!isBooth(e)?(tab!=="pl"?"":`<section style="display:flex;flex-direction:column;gap:12px"><h2>งบกำไรขาดทุน</h2>
     <p class="muted" style="margin:0;font-size:.85rem">งานขายขาด ยอดขายมาจากใบคอนเฟิร์มทั้งงาน กรอกเฉพาะค่าใช้จ่ายจริงของงาน</p>
     ${ds.length?dayPL(e,"event"):`<div class="empty">ยังไม่ได้กำหนดวันที่จัดงาน</div>`}</section>`):tab==="sales"?`<section style="display:flex;flex-direction:column;gap:12px">
@@ -1407,6 +1419,7 @@ function dayPL(e,d){
   const pl=S.draft,booth=isBooth(e),eff=effPL(e,d,pl),c=calcPL(e,eff),dis=canEdit?"":"disabled";
   const what=booth?"ยอดขายและค่าใช้จ่าย":"ค่าใช้จ่าย";
   const notice=!open?`<div class="notice info">กรอก${what}ได้ตั้งแต่วันงาน (${whole?dLabel(ds0):dLabel(d)}) ตัวเลขด้านล่างเป็นค่าตั้งต้น</div>`
+    :S.guest?`<div class="notice info" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">ดูอย่างเดียว · เข้าสู่ระบบเพื่อกรอกยอดขาย <button class="btn small" data-login type="button">เข้าสู่ระบบ</button></div>`
     :!S.canSales?`<div class="notice info">${S.jobLocked?"ปิดงานแล้ว · แก้ไขไม่ได้":"ดูอย่างเดียว เฉพาะOps.Teamที่บันทึกได้"}</div>`
     :!pl._saved?`<div class="notice warn">ยังไม่ได้บันทึกวันนี้ กรอก${what}จริงแล้วกดบันทึก</div>`:"";
   const salesBlock=booth?null:`<div><div class="sectionlabel" style="margin-bottom:6px">ยอดขายตามใบคอนเฟิร์ม · ขายขาด (ไม่ต้องกรอก)</div>
