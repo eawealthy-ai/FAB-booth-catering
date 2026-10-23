@@ -372,7 +372,7 @@ tr.total td{background:var(--brand-soft)}
       <button class="tab" data-view="overall" id="tabOverall" type="button" hidden>ภาพรวม 2 แบรนด์</button>
       <button class="tab" data-view="dash" type="button">Dashboard</button>
       <button class="tab" data-view="events" type="button">งานทั้งหมด</button>
-      <button class="tab" data-view="new" id="tabNew" type="button">+ ลงทะเบียนงาน</button>
+      <button class="tab" data-view="new" id="tabNew" type="button">+ Add new event</button>
       <button class="tab" data-view="menus" id="tabMenus" type="button" hidden>เมนู &amp; BOM</button>
       <button class="tab" data-view="notif" id="tabNotif" type="button" style="position:relative">แจ้งเตือน<span id="notifBadge" class="nbadge" aria-live="polite" hidden></span></button>
       <button class="tab" data-view="users" id="tabUsers" type="button" hidden>ผู้ใช้ &amp; สิทธิ์</button>
@@ -717,12 +717,12 @@ function viewEvents(){
   else if(S.filter==="past")list=list.filter(e=>{const ds=sortedDates(e);return ds.length&&ds[ds.length-1]<t}).reverse();
   const head=`<div class="row" style="justify-content:space-between">
     <h1>งานที่คอนเฟิร์มแล้ว</h1>
-    <div class="row">${S.downloads&&S.events.length?`<button class="btn sec" id="pdfAll" type="button">Export PDF สรุปงาน</button>`:""}${S.isAdmin?`<button class="btn" data-view="new" type="button">+ ลงทะเบียนงาน</button>`:""}</div></div>
+    <div class="row">${S.downloads&&S.events.length?`<button class="btn sec" id="pdfAll" type="button">Export PDF สรุปงาน</button>`:""}${S.isAdmin?`<button class="btn" data-view="new" type="button">+ Add new event</button>`:""}</div></div>
     ${S.evReady?calView():""}
     <div class="row" style="gap:8px">${S.calDay?`<span class="chip" style="background:var(--brand-soft);color:var(--ink);padding:6px 8px 6px 14px">งานวันที่ ${dLabel(S.calDay)} <button class="x" data-calclear type="button" aria-label="ล้างวันที่">×</button></span>`
       :`<div class="filters">${[["upcoming","กำลังจะถึง"],["past","จบแล้ว"],["all","ทั้งหมด"]].map(([k,l])=>`<button class="fbtn" data-filter="${k}" aria-pressed="${S.filter===k}" type="button">${l} <span class="num">${counts[k]}</span></button>`).join("")}</div>`}</div>`;
   if(!S.evReady)return head+`<div class="empty">กำลังโหลดรายการงาน…</div>`;
-  if(!list.length)return head+`<div class="empty">ยังไม่มีงานในหมวดนี้${S.isAdmin?"<br>กด “+ ลงทะเบียนงาน” เพื่อเพิ่มงานแรก":""}</div>`;
+  if(!list.length)return head+`<div class="empty">ยังไม่มีงานในหมวดนี้${S.isAdmin?"<br>กด “+ Add new event” เพื่อเพิ่มงานแรก":""}</div>`;
   return head+`<div class="evlist">${list.map(e=>{
     const ds=sortedDates(e),[cls,lab]=eventStatus(e),f=ds[0];
     const dd=f?f.split("-"):null;
@@ -762,7 +762,7 @@ function goSales(){const tb=todayBooths();
 function homeItems(){
   const role=myRole(),it=[];
   it.push(["events","list","งานทั้งหมด"],["cal","cal","ปฏิทินงาน"]);
-  if(S.isAdmin)it.push(["new","plus","ลงทะเบียนงาน"]);
+  if(S.isAdmin)it.push(["new","plus","Add new event"]);
   if(S.canSales)it.push(["sales","pos","กรอกยอดขาย"]);
   it.push(["dash","chart","Dashboard"]);
   if(S.isOwner||role==="management")it.push(["overall","pie","ภาพรวม 2 แบรนด์"]);
@@ -793,7 +793,7 @@ function viewHome(){
     ${upcoming.map(e=>{const ds=sortedDates(e),[cls,lab]=eventStatus(e);return `<button class="panel hk-next" data-open="${esc(e.id)}" type="button"><div><b>${esc(e.customer)}</b><div class="muted" style="font-size:.85rem">${esc(e.format)} · ${datesText(ds)}</div></div><span class="pill ${cls}">${lab}</span></button>`}).join("")}</section>`:""}`;
 }
 function bottomNav(u){
-  const role=myRole(),c=S.isAdmin?["new","plus","ลงทะเบียน"]:S.canSales?["sales","pos","กรอกยอด"]:["events","list","งาน"];
+  const role=myRole(),c=S.isAdmin?["new","plus","Add event"]:S.canSales?["sales","pos","กรอกยอด"]:["events","list","งาน"];
   const v=S.view==="event"?"events":S.view;
   const b=(k,ic,l)=>`<button class="bn${v===k||(k==="events"&&v==="events")?" on":""}" data-home="${k}" type="button">${ico(ic,22)}<span>${l}</span>${k==="notif"&&u?`<span class="nbadge">${u>99?"99+":u}</span>`:""}</button>`;
   return b("home","home","หน้าแรก")+b("events","list","งานทั้งหมด")+`<button class="bn-c" data-home="${c[0]}" type="button" aria-label="${c[2]}"><span>${ico(c[1],28)}</span><em>${c[2]}</em></button>`+b("dash","chart","Dashboard")+b("notif","bell","แจ้งเตือน");
@@ -829,7 +829,7 @@ function viewForm(){
   if(!S.isAdmin)return `<div class="empty">เฉพาะผู้ดูแลที่ลงทะเบียนงานได้</div>`;
   const e=S.draft||(S.draft=JSON.parse(JSON.stringify(S.editEvent||blankEvent())));
   const total=eventTotal(e);
-  return `<div><div class="sectionlabel">${S.editEvent?"แก้ไขงาน":"ยืนยันงาน"}</div><h1>${S.editEvent?"แก้ไขข้อมูลงาน":"ลงทะเบียนงาน Catering / Booth"}</h1></div>
+  return `<div><div class="sectionlabel">${S.editEvent?"แก้ไขงาน":"ยืนยันงาน"}</div><h1>${S.editEvent?"แก้ไขข้อมูลงาน":"Add new event · Catering / Booth"}</h1></div>
   <form id="evForm" class="panel" style="display:flex;flex-direction:column;gap:18px" novalidate>
     <div class="grid">
       <label>รูปแบบงาน<select id="f-format">${(FORMATS.includes(e.format)?FORMATS:[...FORMATS,e.format]).map(o=>`<option ${e.format===o?"selected":""}>${esc(o)}</option>`).join("")}</select></label>
