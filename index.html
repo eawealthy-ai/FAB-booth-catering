@@ -298,7 +298,8 @@ const sortedDates=e=>[...(e.dates||[])].filter(Boolean).sort();
 const LOCK_DAYS=7;
 const addDays=(d,k)=>{const[y,m,dd]=d.split("-").map(Number);const x=new Date(Date.UTC(y,m-1,dd+k));return x.toISOString().slice(0,10)};
 function lockInfo(e){const ds=sortedDates(e);if(!e||!ds.length||e.status==="cancelled"||e.status==="tbd")return null;const end=ds[ds.length-1],t=today();if(t<=end)return null;
-  const dl=addDays(end,LOCK_DAYS),left=Math.round((Date.parse(dl)-Date.parse(t))/864e5);return {end,deadline:dl,locked:t>dl,left}}
+  const dl=addDays(end,LOCK_DAYS),left=Math.round((Date.parse(dl)-Date.parse(t))/864e5),un=!!(e.unlockUntil&&t<=e.unlockUntil);return {end,deadline:dl,locked:t>dl&&!un,expired:t>dl,unlocked:t>dl&&un,until:e.unlockUntil||"",left}}
+function unlockReq(e){const a=(S.acts||[]).filter(x=>x.eventId===e.id&&(x.type==="unlockreq"||x.type==="unlock"||x.type==="relock"));const last=a.sort((x,y)=>String(y.at).localeCompare(String(x.at)))[0];return last&&last.type==="unlockreq"?last:null}
 function dateRanges(list){
   const ds=[...new Set(list.filter(Boolean))].sort(),out=[];
   const next=s=>{const d=new Date(s+"T00:00:00Z");d.setUTCDate(d.getUTCDate()+1);return d.toISOString().slice(0,10)};
@@ -443,7 +444,7 @@ function eventStatus(e){
   if(e.status==="tbd")return["live","รอกำหนดวัน"];
   const ds=sortedDates(e),t=today();
   if(!ds.length)return["ok","คอนเฟิร์มแล้ว"];
-  if(t>ds[ds.length-1])return["done",t>addDays(ds[ds.length-1],LOCK_DAYS)?"🔒 ปิดงานแล้ว":"จบงานแล้ว"];
+  if(t>ds[ds.length-1])return["done",t>addDays(ds[ds.length-1],LOCK_DAYS)&&!(e.unlockUntil&&t<=e.unlockUntil)?"🔒 ปิดงานแล้ว":"จบงานแล้ว"];
   if(t>=ds[0])return["live","กำลังจัดงาน"];
   return["ok","คอนเฟิร์มแล้ว"];
 }
@@ -566,7 +567,7 @@ function render(){
   if((S.view==="users"||S.view==="menus")&&!S.isSys)S.view="events";
   if(S.view==="overall"&&!(S.isOwner||role==="management"))S.view="events";
   document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-current",(b.dataset.view===S.view||(S.view==="event"&&b.dataset.view==="events"))?"page":"false"));
-  const m=$("#main"),keep=[S.isAdmin,S.canSales];
+  const m=$("#main"),keep=[S.isAdmin,S.canSales];S.can0={isAdmin:S.isAdmin,canSales:S.canSales};
   {const le=S.view==="event"?S.events.find(x=>x.id===S.eventId):S.view==="new"&&S.editEvent?S.editEvent:null,li=le&&lockInfo(le);
    S.jobLocked=!!(li&&li.locked);if(S.jobLocked&&!S.isSys){S.isAdmin=false;S.canSales=false}}
   try{
@@ -753,7 +754,18 @@ function viewEvent(){
       <div style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600">${esc(e.customer)}</div></div>${tabBar}</div>`
     :`<button class="btn sec small" data-view="events" type="button" style="align-self:flex-start">← งานทั้งหมด</button>`}
   ${(()=>{const li=lockInfo(e);if(!li)return "";
-    if(li.locked)return `<div class="notice ${S.isSys?"warn":"info"}" style="margin:0">🔒 ปิดงานแล้ว · ครบ ${LOCK_DAYS} วันหลังจบงาน (กำหนดปิด ${dLabel(li.deadline)})${S.isSys?" · คุณเป็น Admin ยังแก้ไขได้":" · แก้ไขข้อมูลไม่ได้แล้ว ติดต่อ Admin หากต้องแก้"}</div>`;
+    if(li.expired){const rq=unlockReq(e),can=S.can0&&(S.can0.isAdmin||S.can0.canSales);
+      const head=li.unlocked?`🔓 Admin เปิดให้แก้ไขถึง ${dLabel(li.until)} · หลังจากนั้นจะล็อกอีกครั้ง`:`🔒 ปิดงานแล้ว · ครบ ${LOCK_DAYS} วันหลังจบงาน (กำหนดปิด ${dLabel(li.deadline)})${S.isSys?" · คุณเป็น Admin ยังแก้ไขได้":""}`;
+      let act="";
+      if(S.isSys){
+        act=(rq?`<div style="font-size:.9rem">คำขอแก้ไขจาก <b data-uname="${esc(rq.by)}">…</b> · ${esc(new Date(rq.at).toLocaleString("th-TH",{dateStyle:"medium",timeStyle:"short"}))}${rq.text?`<br>เหตุผล: ${esc(rq.text)}`:""}</div>`:"")
+          +`<div class="row" style="gap:6px"><span class="muted" style="font-size:.85rem">${rq?"อนุมัติ":"เปิดให้ทีมแก้ไข"}:</span>${[1,3,7].map(k=>`<button class="btn small${rq?"":" sec"}" data-unlock="${k}" type="button">${k} วัน</button>`).join("")}
+            ${li.unlocked?`<button class="btn sec small" id="relock" type="button">ล็อกทันที</button>`:""}${rq?`<button class="btn sec small" id="unlockNo" type="button">ไม่อนุมัติ</button>`:""}</div>`;
+      }else if(li.locked&&can){
+        act=rq?`<div style="font-size:.9rem">ส่งคำขอแก้ไขแล้ว รอ Admin อนุมัติ</div>`
+          :`<div class="row" style="gap:6px;align-items:stretch"><input id="unlockWhy" type="text" placeholder="เหตุผลที่ต้องแก้ไข" style="flex:1 1 220px"><button class="btn small" id="unlockReq" type="button">ขอแก้ไขจาก Admin</button></div>`;
+      }
+      return `<div class="notice ${li.unlocked?"warn":"info"}" style="margin:0;display:flex;flex-direction:column;gap:8px"><div>${head}</div>${act}</div>`}
     return `<div class="notice warn" style="margin:0">จบงานแล้ว · กรอกยอดขาย/ค่าใช้จ่ายและปิดงานให้เสร็จภายใน ${dLabel(li.deadline)} (เหลือ ${li.left?li.left+" วัน":"วันนี้วันสุดท้าย"}) หลังจากนั้นจะแก้ไขไม่ได้</div>`})()}
   ${tab==="info"?`<section class="panel" style="display:flex;flex-direction:column;gap:16px">
     <div class="sheet-head"><div><div class="row" style="gap:8px"><span class="pill ${cls}">${lab}</span><span class="muted">${esc(e.format)}</span></div>
@@ -921,7 +933,7 @@ async function htmlToPdf(html,filename,btn,label,landscape){
 const safeName=v=>String(v||"").replace(/[\\/:*?"<>|\[\]]/g,"").trim();
 function exportPDF(e,btn){return htmlToPdf(pdfSheet(e),(safeName(e.customer)||"event")+"_"+(sortedDates(e)[0]||"")+".pdf",btn,"Export PDF",false)}
 /* activity log & read receipts */
-const ACT_LABEL={new:"งานใหม่",edit:"แก้ไขงาน",del:"ลบงาน",update:"อัปเดต",slip:"แนบสลิป",pl:"บันทึกยอดขาย"};
+const ACT_LABEL={unlockreq:"ขอแก้ไข",unlock:"อนุมัติแก้ไข",relock:"ล็อกงาน",new:"งานใหม่",edit:"แก้ไขงาน",del:"ลบงาน",update:"อัปเดต",slip:"แนบสลิป",pl:"บันทึกยอดขาย"};
 async function logAct(type,e,text){
   if(!S.db||!S.brand)return;
   try{await S.db.collection("b/"+S.brand+"/activity").doc().set({type,eventId:e?.id||"",title:e?.customer||"",text:text||"",by:S.uid||"",at:new Date().toISOString()})}catch(_){}
@@ -1337,6 +1349,11 @@ function bind(){
   if(S.view==="overall"){
     on("[data-ovy]","click",ev=>{S.ovYear+= +ev.currentTarget.dataset.ovy;render()});
     if($("#ovRefresh"))$("#ovRefresh").onclick=()=>loadAllEvents();
+    if($("#unlockReq"))$("#unlockReq").onclick=async()=>{const e=S.events.find(x=>x.id===S.eventId);if(!e)return;await logAct("unlockreq",e,($("#unlockWhy")?.value||"").trim());toast("ส่งคำขอให้ Admin แล้ว")};
+    on("[data-unlock]","click",async ev=>{const e=S.events.find(x=>x.id===S.eventId);if(!e)return;const k=+ev.currentTarget.dataset.unlock,u=addDays(today(),k-1);
+      try{await S.db.doc("b/"+S.brand+"/events/"+e.id).update({unlockUntil:u});await logAct("unlock",e,"เปิดให้แก้ไขถึง "+dLabel(u));toast("เปิดให้แก้ไขถึง "+dLabel(u))}catch(_){toast("บันทึกไม่สำเร็จ")}});
+    if($("#relock"))$("#relock").onclick=async()=>{const e=S.events.find(x=>x.id===S.eventId);if(!e)return;try{await S.db.doc("b/"+S.brand+"/events/"+e.id).update({unlockUntil:null});await logAct("relock",e,"ล็อกงานแล้ว");toast("ล็อกงานแล้ว")}catch(_){toast("บันทึกไม่สำเร็จ")}};
+    if($("#unlockNo"))$("#unlockNo").onclick=async()=>{const e=S.events.find(x=>x.id===S.eventId);if(!e)return;await logAct("relock",e,"ไม่อนุมัติคำขอแก้ไข");toast("แจ้งไม่อนุมัติแล้ว")};
     on("[data-ovb]","click",ev=>{S.ovBrand=ev.currentTarget.dataset.ovb;render()});
     on("[data-ovopen]","click",ev=>{const[b,id]=ev.currentTarget.dataset.ovopen.split("|");if(b!==S.brand){if(!allowedBrands().includes(b))return;leaveBrand();enterBrand(b)}go("event",{id})});
   }
@@ -1393,7 +1410,7 @@ function bind(){
         !booth&&!e.packages.some(p=>p.name&&n(p.qty))&&"เมนูอย่างน้อย 1 รายการ",
         booth&&!(n(fe.salesPerDay)>0)&&"Target sales",booth&&!fe.lines&&String(fe.rent??"")===""&&"ค่าเช่าบูธ",booth&&!fe.lines&&!(n(fe.staff)>0)&&"จำนวนพนักงาน"].filter(Boolean);
       if(miss.length){err.textContent="กรอกให้ครบ: "+miss.join(", ");err.hidden=false;return}
-      const body={paid:n(S.editEvent?.paid),...(S.editEvent?.actual?{actual:S.editEvent.actual}:{}),format:e.format,customer:e.customer,phone:e.phone,dates:[...new Set(dates)].sort(),serveFrom:e.serveFrom,serveTo:e.serveTo,
+      const body={paid:n(S.editEvent?.paid),...(S.editEvent?.unlockUntil?{unlockUntil:S.editEvent.unlockUntil}:{}),...(S.editEvent?.actual?{actual:S.editEvent.actual}:{}),format:e.format,customer:e.customer,phone:e.phone,dates:[...new Set(dates)].sort(),serveFrom:e.serveFrom,serveTo:e.serveTo,
         venue:e.venue,mapUrl:e.mapUrl||"",guests:isBooth(e)?0:n(e.guests),packages:e.packages.filter(p=>p.name).map(p=>({menuId:p.menuId||(S.menus.find(m=>m.name===p.name)||{}).id||"",name:p.name,price:n(p.price),qty:n(p.qty)})),
         distributionNote:booth?"":e.distributionNote,cateringFeePerDay:booth?0:n(e.cateringFeePerDay),
         feas:booth?(fe.lines?{salesPerDay:n(fe.salesPerDay),foodPct:n(fe.foodPct),lines:Object.fromEntries(TSC_LINES.map(([k])=>[k,n(fe.lines[k])])),rent:n(fe.lines.rent),staff:0,stay:false}:{salesPerDay:n(fe.salesPerDay),rent:n(fe.rent),staff:n(fe.staff),stay:!!fe.stay}):null,feasFc:booth&&!fe.lines?formFc(e):null,vatIncluded:e.vatIncluded,status:e.status,note:e.note,

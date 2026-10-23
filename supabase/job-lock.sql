@@ -1,10 +1,14 @@
--- Lock an event 7 days after its last date (Asia/Bangkok). Owner/Admin (is_sys) can still edit.
+-- Lock an event 7 days after its last date (Asia/Bangkok). Owner/Admin (is_sys) can still edit,
+-- and can reopen it for the team until events.unlock_until.
+alter table public.events add column if not exists unlock_until text;
+
 create or replace function public.event_open(eid text) returns boolean
 language sql stable security definer set search_path = public as $$
   select public.is_sys() or coalesce((
     select e.status in ('cancelled','tbd')
         or (select max(nullif(d,''))::date from unnest(e.dates) d) is null
         or (select max(nullif(d,''))::date from unnest(e.dates) d) + 7 >= (now() at time zone 'Asia/Bangkok')::date
+        or (nullif(e.unlock_until,'')::date >= (now() at time zone 'Asia/Bangkok')::date)
     from public.events e where e.id = eid), true)
 $$;
 
