@@ -48,6 +48,11 @@ h1{font-size:1.6rem} h2{font-size:1.25rem} h3{font-size:1.02rem}
   body{padding-left:max(10px,env(safe-area-inset-left,0px));padding-right:max(10px,env(safe-area-inset-right,0px))}
   main{gap:12px;padding-top:12px}
   .grid.kpis{gap:8px}
+  main .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  main .grid.kpis{gap:8px}
+  main .kv{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 14px}
+  main .kv .wide{grid-column:1/-1}
+  main .sheet-head h1{font-size:1.6rem}
   .panel.kpi{padding:12px;border-radius:16px}
   .kpi .kv-num{font-size:1.15rem}
   .kpi .muted{font-size:.74rem!important;line-height:1.35}
@@ -793,11 +798,11 @@ function viewEvent(){
       <div><dt>วันที่</dt><dd>${datesText(ds)||"–"}${ds.length>1?` <span class="muted">(${ds.length} วัน)</span>`:""}</dd></div>
       <div><dt>เวลาเสิร์ฟ</dt><dd>${timeText(e)}</dd></div>
       ${isBooth(e)?"":`<div><dt>จำนวนแขก</dt><dd>${fmt(e.guests)} ท่าน</dd></div>`}
-      <div><dt>เมนู</dt><dd>${(e.packages||[]).map(p=>`${esc(p.name)} ฿${fmt(p.price)} × ${fmt(p.qty)}`).join("<br>")}</dd></div>
+      <div class="wide"><dt>เมนู</dt><dd>${(e.packages||[]).map(p=>`${esc(p.name)} ฿${fmt(p.price)} × ${fmt(p.qty)}`).join("<br>")}</dd></div>
       ${isBooth(e)?`<div><dt>ค่าเช่าบูธ</dt><dd>฿${fmt(e.feas?.rent)}</dd></div>${e.feas?.lines?"":`<div><dt>พนักงาน</dt><dd>${fmt(e.feas?.staff)} คน${e.feas?.stay?" · พักค้างคืน":""}</dd></div>`}`
         :`<div><dt>ค่าบริการ Catering</dt><dd>฿${fmt(e.cateringFeePerDay)}/วัน × ${ds.length} วัน</dd></div>`}
       ${e.distributionNote?`<div><dt>การแจก</dt><dd>${esc(e.distributionNote)}</dd></div>`:""}
-      ${e.note?`<div><dt>หมายเหตุ</dt><dd>${esc(e.note)}</dd></div>`:""}
+      ${e.note?`<div class="wide"><dt>หมายเหตุ</dt><dd>${esc(e.note)}</dd></div>`:""}
     </dl>
   </section>`:compactHead}
   ${tab==="pl"&&S.downloads?`<div class="row" style="justify-content:flex-end"><button class="btn" id="pdfPL" type="button">Export PDF</button></div>`:""}
