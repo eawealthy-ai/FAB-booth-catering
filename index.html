@@ -165,9 +165,8 @@ textarea{min-height:64px;resize:vertical}
 @media (min-width:821px){.hk-grid{grid-template-columns:repeat(8,minmax(0,1fr))}}
 @media (max-width:820px){
   .m-only{display:inline-grid!important}
-  .bnav.m-only{display:grid!important}
+  .m-only[hidden]{display:none!important}
   .bar .tabs,#switchBrand,header #logoutBtn,#roleChip{display:none!important}
-  body{padding-bottom:calc(92px + env(safe-area-inset-bottom,0px))}
   .bnav{position:fixed;left:0;right:0;bottom:0;z-index:8;grid-template-columns:repeat(5,minmax(0,1fr));align-items:end;background:var(--surface);border-top:1px solid var(--line);border-radius:22px 22px 0 0;box-shadow:0 -6px 24px rgba(20,30,50,.08);padding:6px 6px calc(8px + env(safe-area-inset-bottom,0px))}
   .bn{position:relative;background:none;border:0;display:flex;flex-direction:column;align-items:center;gap:2px;color:var(--muted);font-size:.72rem;padding:6px 0 0}
   .bn.on{color:var(--brand-2);font-weight:700}
@@ -358,11 +357,12 @@ tr.total td{background:var(--brand-soft)}
 <div id="app" hidden>
   <header class="bar"><div class="bar-in">
     <div class="bar-top">
-      <img src="assets/fab-logo.png" alt="FAB" style="flex:none;height:30px;width:auto"><div><div class="unit">Booth &amp; Catering</div><div class="brandname" id="brandName"></div></div>
+      <img src="assets/fab-logo.png" alt="FAB · หน้าแรก" data-home="home" style="flex:none;height:30px;width:auto;cursor:pointer"><div><div class="unit">Booth &amp; Catering</div><div class="brandname" id="brandName"></div></div>
       <span class="spacer"></span>
       <span class="chip" id="roleChip"></span>
       <button class="ghost" id="switchBrand" type="button">เปลี่ยนแบรนด์</button>
       <button class="ghost" id="logoutBtn" type="button">ออกจากระบบ</button>
+      <button class="hicon m-only" id="hdrHome" type="button" aria-label="หน้าแรก" data-home="home"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg></button>
       <button class="hicon m-only" id="hdrBell" type="button" aria-label="แจ้งเตือน"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg><span class="nbadge" id="hdrBadge" hidden></span></button>
       <button class="hicon m-only" id="hdrPower" type="button" aria-label="ออกจากระบบ"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 3v8"/><path d="M6.4 6.6a8 8 0 1 0 11.2 0"/></svg></button>
     </div>
@@ -378,7 +378,6 @@ tr.total td{background:var(--brand-soft)}
     </nav>
   </div></header>
   <main class="wrap" id="main"></main>
-  <nav class="bnav m-only" id="bnav" aria-label="เมนูด่วน"></nav>
 </div>
 <div id="toast" class="toast" hidden></div>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="fabg" gradientUnits="userSpaceOnUse" x1="2" y1="2" x2="22" y2="22"><stop offset="0" stop-color="#4a63d8"/><stop offset=".5" stop-color="#a35a9a"/><stop offset="1" stop-color="#ee8838"/></linearGradient></defs></svg>
@@ -682,7 +681,7 @@ function render(){
   {const u=unreadCount(),b=$("#notifBadge");b.hidden=!u;b.textContent=u>99?"99+":String(u);b.setAttribute("aria-label",u+" รายการยังไม่อ่าน");
    const base="Booth & Catering Desk";document.title=u?`(${u>99?"99+":u}) ${base}`:base}
   $("#tabMenus").hidden=!S.isSys;
-  {const u=unreadCount(),hb=$("#hdrBadge");hb.hidden=!u;hb.textContent=u>99?"99+":String(u);$("#bnav").innerHTML=bottomNav(u)}
+  {const u=unreadCount(),hb=$("#hdrBadge");hb.hidden=!u;hb.textContent=u>99?"99+":String(u);$("#hdrHome").hidden=S.view==="home"}
   $("#switchBrand").hidden=allowedBrands().length<2;
   if((S.view==="users"||S.view==="menus")&&!S.isSys)S.view="events";
   if(S.view==="overall"&&!(S.isOwner||role==="management"))S.view="events";
