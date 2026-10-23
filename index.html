@@ -770,7 +770,6 @@ function homeItems(){
   const other=[];
   if(S.isSys)other.push(["menus","book","เมนู & BOM"],["users","users","ผู้ใช้ & สิทธิ์"]);
   if(allowedBrands().length>1)other.push(["switch","swap","เปลี่ยนแบรนด์"]);
-  other.push(["logout","power","ออกจากระบบ"]);
   return {it,other};
 }
 function viewHome(){
@@ -786,8 +785,8 @@ function viewHome(){
       ${mt?`<div class="hk-stats"><div><span>งานเดือนนี้</span><b>${fmt(mt.booth+mt.cat)}</b></div><div><span>ยอดขายเดือนนี้</span><b>฿${fmt(mt.g)}</b></div><div><span>กำไร/ขาดทุน</span><b class="${mt.np<0?"neg":mt.np>0?"pos":""}">฿${fmt(mt.np)}</b></div></div>`:""}
     </div>
     <div class="hk-grid">${it.map(tile).join("")}</div>
-    <div class="hk-sec"><span class="hk-bar"></span>บริการอื่น</div>
-    <div class="hk-grid">${other.map(tile).join("")}</div>
+    ${other.length?`<div class="hk-sec"><span class="hk-bar"></span>บริการอื่น</div>
+    <div class="hk-grid">${other.map(tile).join("")}</div>`:""}
   </section>
   ${upcoming.length?`<section style="display:flex;flex-direction:column;gap:8px"><h2>งานถัดไป</h2>
     ${upcoming.map(e=>{const ds=sortedDates(e),[cls,lab]=eventStatus(e);return `<button class="panel hk-next" data-open="${esc(e.id)}" type="button"><div><b>${esc(e.customer)}</b><div class="muted" style="font-size:.85rem">${esc(e.format)} · ${datesText(ds)}</div></div><span class="pill ${cls}">${lab}</span></button>`}).join("")}</section>`:""}`;
