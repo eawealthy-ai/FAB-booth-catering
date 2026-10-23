@@ -78,6 +78,7 @@ h1{font-size:1.6rem} h2{font-size:1.25rem} h3{font-size:1.02rem}
   main table.rt tr.total td{background:none!important}
   main .tbl-wrap table:not(.rt) td:first-child{white-space:nowrap}
   main label:has(#f-format){grid-column:1/-1}
+  main .cal-d{height:auto;aspect-ratio:1/1;min-height:38px}
   .panel.kpi{padding:12px;border-radius:16px}
   .kpi .kv-num{font-size:1.15rem}
   .kpi .muted{font-size:.74rem!important;line-height:1.35}
@@ -136,6 +137,22 @@ textarea{min-height:64px;resize:vertical}
 
 /* event list */
 .evlist{display:flex;flex-direction:column;gap:10px}
+.cal{display:flex;flex-direction:column;gap:10px;padding:14px;max-width:560px;width:100%}
+.cal-g{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.cal-g .w{text-align:center;font-size:.72rem;color:var(--muted);padding-bottom:2px}
+.cal-d{height:50px;border:1px solid transparent;border-radius:12px;background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:2px;color:var(--muted)}
+.cal-d .n{font-size:.92rem;line-height:1}
+.cal-d.has{background:var(--brand-soft);color:var(--ink);font-weight:700;cursor:pointer}
+.cal-d.today{border-color:var(--brand-2)}
+.cal-d.sel{background:var(--grad);color:#fff}
+.cal-d .dots{display:flex;gap:2px;height:6px;align-items:center}
+.cal-d .dots i,.cal-k{display:inline-block;width:6px;height:6px;border-radius:50%}
+.cal-k{margin-right:5px;vertical-align:1px}
+.cal-d .dots i.b,.cal-k.b{background:var(--brand-2)}
+.cal-d .dots i.c,.cal-k.c{background:#2f9e6b}
+.cal-d.sel .dots i{background:#fff}
+.cal-d .dots b{font-size:.6rem;line-height:1}
+.cal-d:disabled{cursor:default}
 .ev{display:grid;grid-template-columns:92px 1fr auto;gap:14px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;text-align:left;width:100%}
 .ev:hover{border-color:var(--brand-2)}
 .datebox{display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:9px;background:var(--brand-soft);padding:8px 4px;min-height:64px}
@@ -638,12 +655,15 @@ function viewEvents(){
   let list=[...S.events].sort((a,b)=>(sortedDates(a)[0]||"").localeCompare(sortedDates(b)[0]||""));
   const counts={upcoming:0,past:0,all:list.length};
   list.forEach(e=>{const ds=sortedDates(e);(ds.length&&ds[ds.length-1]<t)?counts.past++:counts.upcoming++});
-  if(S.filter==="upcoming")list=list.filter(e=>{const ds=sortedDates(e);return !ds.length||ds[ds.length-1]>=t});
-  if(S.filter==="past")list=list.filter(e=>{const ds=sortedDates(e);return ds.length&&ds[ds.length-1]<t}).reverse();
+  if(S.calDay)list=list.filter(e=>e.status!=="cancelled"&&sortedDates(e).includes(S.calDay));
+  else if(S.filter==="upcoming")list=list.filter(e=>{const ds=sortedDates(e);return !ds.length||ds[ds.length-1]>=t});
+  else if(S.filter==="past")list=list.filter(e=>{const ds=sortedDates(e);return ds.length&&ds[ds.length-1]<t}).reverse();
   const head=`<div class="row" style="justify-content:space-between">
     <h1>งานที่คอนเฟิร์มแล้ว</h1>
     <div class="row">${S.downloads&&S.events.length?`<button class="btn sec" id="pdfAll" type="button">Export PDF สรุปงาน</button>`:""}${S.isAdmin?`<button class="btn" data-view="new" type="button">+ ลงทะเบียนงาน</button>`:""}</div></div>
-    <div class="filters">${[["upcoming","กำลังจะถึง"],["past","จบแล้ว"],["all","ทั้งหมด"]].map(([k,l])=>`<button class="fbtn" data-filter="${k}" aria-pressed="${S.filter===k}" type="button">${l} <span class="num">${counts[k]}</span></button>`).join("")}</div>`;
+    ${S.evReady?calView():""}
+    <div class="row" style="gap:8px">${S.calDay?`<span class="chip" style="background:var(--brand-soft);color:var(--ink);padding:6px 8px 6px 14px">งานวันที่ ${dLabel(S.calDay)} <button class="x" data-calclear type="button" aria-label="ล้างวันที่">×</button></span>`
+      :`<div class="filters">${[["upcoming","กำลังจะถึง"],["past","จบแล้ว"],["all","ทั้งหมด"]].map(([k,l])=>`<button class="fbtn" data-filter="${k}" aria-pressed="${S.filter===k}" type="button">${l} <span class="num">${counts[k]}</span></button>`).join("")}</div>`}</div>`;
   if(!S.evReady)return head+`<div class="empty">กำลังโหลดรายการงาน…</div>`;
   if(!list.length)return head+`<div class="empty">ยังไม่มีงานในหมวดนี้${S.isAdmin?"<br>กด “+ ลงทะเบียนงาน” เพื่อเพิ่มงานแรก":""}</div>`;
   return head+`<div class="evlist">${list.map(e=>{
@@ -658,6 +678,26 @@ function viewEvents(){
         :`<div class="sectionlabel" style="font-size:.66rem">ยอดขาย (inc. VAT)</div><div class="muted" style="font-size:.85rem">ยังไม่กรอกยอด</div>`)
       :`${isBooth(e)?`<div class="sectionlabel" style="font-size:.66rem">Target sales</div>`:""}<div class="num" style="font-weight:600">฿${fmt(eventTotal(e))}</div>`}<span class="pill ${cls}">${lab}</span></div>
     </button>`}).join("")}</div>`;
+}
+
+/* event calendar */
+function calView(){
+  const ym=S.calMonth||(S.calMonth=today().slice(0,7)),[y,m]=ym.split("-").map(Number),t=today();
+  const first=new Date(Date.UTC(y,m-1,1)).getUTCDay(),days=new Date(Date.UTC(y,m,0)).getUTCDate();
+  const map={};S.events.filter(e=>e.status!=="cancelled").forEach(e=>sortedDates(e).forEach(d=>{if(d.startsWith(ym))(map[d]||(map[d]=[])).push(e)}));
+  const cells=[];for(let i=0;i<first;i++)cells.push(`<span></span>`);
+  for(let d=1;d<=days;d++){const k=ym+"-"+String(d).padStart(2,"0"),ev=map[k]||[],sel=S.calDay===k;
+    cells.push(`<button type="button" class="cal-d${ev.length?" has":""}${k===t?" today":""}${sel?" sel":""}" ${ev.length?`data-calday="${k}"`:"disabled"} aria-pressed="${sel}" aria-label="${d} ${TH_MF[m-1]}${ev.length?` มี ${ev.length} งาน`:""}">
+      <span class="n">${d}</span><span class="dots">${ev.slice(0,3).map(e=>`<i class="${isBooth(e)?"b":"c"}"></i>`).join("")}${ev.length>3?`<b>+${ev.length-3}</b>`:""}</span></button>`)}
+  const cnt=Object.keys(map).length;
+  return `<section class="panel cal" aria-label="ปฏิทินงาน">
+    <div class="row" style="justify-content:space-between;flex-wrap:nowrap">
+      <button class="btn sec small" data-calm="-1" type="button" aria-label="เดือนก่อน">‹</button>
+      <div style="text-align:center"><b>${TH_MF[m-1]} ${y+543}</b><div class="muted" style="font-size:.78rem">${cnt?`มีงาน ${cnt} วัน`:"ไม่มีงานเดือนนี้"}</div></div>
+      <button class="btn sec small" data-calm="1" type="button" aria-label="เดือนถัดไป">›</button></div>
+    <div class="cal-g">${["อา","จ","อ","พ","พฤ","ศ","ส"].map(w=>`<span class="w">${w}</span>`).join("")}${cells.join("")}</div>
+    <div class="row muted" style="gap:14px;font-size:.78rem;justify-content:center"><span><i class="cal-k b"></i>บูธ</span><span><i class="cal-k c"></i>Catering</span>${ym!==t.slice(0,7)?`<button class="btn sec small" data-caltoday type="button">วันนี้</button>`:""}</div>
+  </section>`;
 }
 
 /* registration form */
@@ -1407,6 +1447,10 @@ function on(sel,evn,fn){document.querySelectorAll(sel).forEach(el=>el.addEventLi
 function bind(){
   const base="b/"+S.brand;
   on("[data-filter]","click",ev=>{S.filter=ev.currentTarget.dataset.filter;render()});
+  on("[data-calm]","click",ev=>{S.calMonth=ymShift(S.calMonth,+ev.currentTarget.dataset.calm);S.calDay=null;render()});
+  on("[data-caltoday]","click",()=>{S.calMonth=today().slice(0,7);S.calDay=null;render()});
+  on("[data-calday]","click",ev=>{const d=ev.currentTarget.dataset.calday;S.calDay=S.calDay===d?null:d;render()});
+  on("[data-calclear]","click",()=>{S.calDay=null;render()});
   on("[data-open]","click",ev=>go("event",{id:ev.currentTarget.dataset.open}));
   if(S.view==="notif"){
     fillNames();
