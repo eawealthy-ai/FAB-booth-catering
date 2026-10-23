@@ -159,6 +159,7 @@ td input,td select{padding:5px 8px}
 .pos{color:var(--good)} .neg{color:var(--bad)}
 .flag{color:var(--warn);font-size:.78rem}
 .pos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px}
+.pos-grid.waste .pos-tile{border-color:#e5484d55}.pos-grid.waste .pos-tile.on{background:#e5484d14;border-color:#e5484d}.pos-grid.waste .qb{background:#e5484d!important;color:#fff}
 .pos-tile{position:relative;display:flex;flex-direction:column;justify-content:space-between;gap:6px;min-height:84px;text-align:left;
   background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 10px 8px;font-size:.88rem;line-height:1.3}
 .pos-tile:hover:not(:disabled){border-color:var(--brand-2)}
@@ -454,9 +455,12 @@ function calcPL(e,pl){
   const net=vatIn?gross/(1+VAT):gross;
   let cogs=0,missing=[];
   (pl.sales||[]).forEach(s=>{const has=s.unitCogs!==undefined&&s.unitCogs!==null&&s.unitCogs!=="";const c=has?n(s.unitCogs):menuCost(menuFor(s));if(n(s.qty)>0&&!has&&!c)missing.push(s.name);cogs+=c*n(s.qty)});
+  const cogsSales=cogs;let waste=0;
+  (pl.waste||[]).forEach(w=>{const has=w.unitCogs!==undefined&&w.unitCogs!==null&&w.unitCogs!=="";const c=has?n(w.unitCogs):menuCost(menuFor(w));if(n(w.qty)>0&&!c&&!missing.includes(w.name))missing.push(w.name);waste+=c*n(w.qty)});
+  cogs+=waste;
   const other=(pl.otherCosts||[]).reduce((a,c)=>a+n(c.amount),0);
   const gp=net-cogs,np=gp-other;
-  return {gross,vat:gross-net,net,cogs,gp,other,np,missing};
+  return {gross,vat:gross-net,net,cogs,cogsSales,waste,gp,other,np,missing};
 }
 function eventStatus(e){
   if(e.status==="cancelled")return["cx","ยกเลิก"];
@@ -763,7 +767,7 @@ function viewEvent(){
   if(!isBooth(e))S.day="event";
   else if(!S.day||!ds.includes(S.day))S.day=ds.find(d=>d===t)||ds.find(d=>d<=t&&!S.pl[d])||ds[0];
   const rows=ds.map(d=>{const pl=S.pl[d]?{...S.pl[d],saved:true}:null;return{d,pl,c:pl?calcPL(e,effPL(e,d,pl)):null}});
-  const sum=rows.filter(r=>r.c).reduce((a,r)=>{for(const k of["gross","net","cogs","gp","other","np"])a[k]+=r.c[k];return a},{gross:0,net:0,cogs:0,gp:0,other:0,np:0});
+  const sum=rows.filter(r=>r.c).reduce((a,r)=>{for(const k of["gross","net","cogs","waste","gp","other","np"])a[k]+=n(r.c[k]);return a},{gross:0,net:0,cogs:0,waste:0,gp:0,other:0,np:0});
   const confirmDel=S.confirmDel===e.id,tab=isBooth(e)?(S.evTab||"info"):(S.evTab==="pl"?"pl":"info");
   const tabBar=true?`<div class="evtabs" role="tablist">${(isBooth(e)?[["info","รายละเอียดงาน"],["sales","กรอกยอดขาย"],["pl","สรุปกำไรขาดทุน"]]:[["info","รายละเอียดงาน"],["pl","งบกำไรขาดทุน"]]).map(([k,l])=>`<button class="evtab" role="tab" data-evtab="${k}" aria-selected="${tab===k}" type="button">${l}</button>`).join("")}</div>`:"";
   const compactHead=`<div><div class="row" style="gap:8px"><span class="pill ${cls}">${lab}</span><span class="muted">${esc(e.format)} · ${datesText(ds)}</span></div>
@@ -861,7 +865,7 @@ const PDF_BASE="--bg:#ffffff;--surface:#ffffff;--ink:#1b1a19;--muted:#5f5a54;--l
 function plSheet(e){
   const ds=sortedDates(e),booth=isBooth(e),keys=booth?ds:["event"];
   const rows=keys.map(d=>{const pl=S.pl[d];return {d,pl,c:pl?calcPL(e,effPL(e,d,pl)):null}});
-  const done=rows.filter(r=>r.c),sum=done.reduce((a,r)=>{for(const k of["gross","net","cogs","gp","other","np"])a[k]+=r.c[k];return a},{gross:0,net:0,cogs:0,gp:0,other:0,np:0});
+  const done=rows.filter(r=>r.c),sum=done.reduce((a,r)=>{for(const k of["gross","net","cogs","waste","gp","other","np"])a[k]+=n(r.c[k]);return a},{gross:0,net:0,cogs:0,waste:0,gp:0,other:0,np:0});
   const fz=booth?calcFeas(e):null;
   const budgetItems=!fz?[]:fz.lines?fz.items.map(x=>[x.l,x.v]):[["ค่าแรง",fz.labor],["OT",fz.ot],["เบี้ยเลี้ยง",fz.allow],["ค่าที่พัก",fz.hotel],["ค่าเช่าบูธ",fz.rent],["ค่ารถขนส่ง",fz.transport],["ค่าอื่น ๆ (น้ำแข็ง ฯลฯ)",fz.other]];
   const act={};done.forEach(r=>(effPL(e,r.d,r.pl).otherCosts||[]).forEach(o=>{if(n(o.amount))act[o.label]=(act[o.label]||0)+n(o.amount)}));
@@ -887,6 +891,7 @@ function plSheet(e){
       ${line("Sales (inc. VAT)",B?fz.gross:null,sum.gross)}
       ${line("ยอดขายก่อน VAT",B?bNet:null,sum.net)}
       ${line("Food cost",B?bFood:null,sum.cogs)}
+      ${sum.waste?line("&nbsp;&nbsp;ในนั้น Waste (ของเสีย)",B?null:null,sum.waste):""}
       ${labels.map(l=>{const b=budgetItems.find(x=>x[0]===l);return line(esc(l),B?(b?b[1]:0):null,act[l]||0)}).join("")}
       ${line("Total Cost",B?bTot:null,sum.cogs+sum.other,strong)}
       ${line("Profit &amp; Loss",B?fz.np:null,sum.np,strong)}
@@ -1230,16 +1235,26 @@ function dayPL(e,d){
   <div class="panel" id="plForm" style="display:flex;flex-direction:column;gap:14px">
     ${salesBlock??(()=>{const bm=boothMenus();if(!bm.length)return `<div class="empty">ยังไม่มีเมนูบูธในระบบ</div>`;
       const lines=(pl.sales||[]).filter(x=>n(x.qty)>0).slice().sort((x,y)=>String(x.name).localeCompare(String(y.name),"th"));pl.sales=lines;
-      const qOf=id=>{const l=lines.find(x=>x.menuId===id);return l?n(l.qty):0};
+      const wl=(pl.waste||[]).filter(x=>n(x.qty)>0).slice().sort((x,y)=>String(x.name).localeCompare(String(y.name),"th"));pl.waste=wl;
+      const W=S.posMode==="waste",src=W?wl:lines;
+      const qOf=id=>{const l=src.find(x=>x.menuId===id);return l?n(l.qty):0};
+      const ucOf=l=>{const has=l.unitCogs!==undefined&&l.unitCogs!==null&&l.unitCogs!=="";return has?n(l.unitCogs):menuCost(menuFor(l))};
+      const tw=wl.reduce((a,x)=>a+n(x.qty),0),twc=wl.reduce((a,x)=>a+n(x.qty)*ucOf(x),0);
       const tq=lines.reduce((a,x)=>a+n(x.qty),0),ta=lines.reduce((a,x)=>a+n(x.qty)*n(x.price),0);
-      return `<div><div class="sectionlabel" style="margin-bottom:8px">คีย์ยอดขาย${canEdit?" · แตะเมนูเพื่อเพิ่ม":""}</div>
-      <div class="pos-grid">${bm.map(m=>{const q=qOf(m.id);return `<button class="pos-tile ${q?"on":""}" type="button" data-pos-add="${esc(m.id)}" ${dis} aria-label="${esc(m.name)} ${fmt(m.price)} บาท">
+      return `<div><div class="row" style="justify-content:space-between;margin-bottom:8px"><div class="sectionlabel">${W?"คีย์ Waste (ของเสีย)":"คีย์ยอดขาย"}${canEdit?" · แตะเมนูเพื่อเพิ่ม":""}</div>
+        <div class="filters row" style="gap:4px" role="group" aria-label="โหมดคีย์"><button type="button" class="fbtn" data-posmode="sale" aria-pressed="${!W}">ขาย</button><button type="button" class="fbtn" data-posmode="waste" aria-pressed="${W}">Waste</button></div></div>
+      <div class="pos-grid${W?" waste":""}">${bm.map(m=>{const q=qOf(m.id);return `<button class="pos-tile ${q?"on":""}" type="button" data-pos-add="${esc(m.id)}" ${dis} aria-label="${esc(m.name)} ${fmt(m.price)} บาท">
         <span>${esc(m.name)}</span><span class="pr">฿${fmt(m.price)}</span>${q?`<span class="qb">${fmt(q)}</span>`:""}</button>`}).join("")}</div></div>
       <div><div class="sectionlabel" style="margin-bottom:6px">รายการขาย</div>
       <div class="ticket" id="posTicket">${lines.length?lines.map((l,i)=>`<div class="tr"><div style="min-width:0"><div style="overflow-wrap:anywhere">${esc(l.name)}</div><div class="muted num" style="font-size:.8rem">฿${fmt(l.price)}</div></div>
         <div class="stepper">${canEdit?`<button type="button" data-pos-dec="${esc(l.menuId)}" aria-label="ลด">−</button>`:""}<input id="pl-tq-${i}" type="number" min="0" inputmode="numeric" value="${fmt0(l.qty)}" ${dis} aria-label="จำนวน ${esc(l.name)}">${canEdit?`<button type="button" data-pos-add="${esc(l.menuId)}" aria-label="เพิ่ม">+</button>`:""}</div>
         <div class="r num">${fmt(n(l.qty)*n(l.price))}</div></div>`).join(""):`<div class="tr"><span class="muted">ยังไม่มีรายการ</span><span></span><span></span></div>`}
-        <div class="tr tot"><span>รวม ${fmt(tq)} รายการ</span><span></span><span class="r num">${fmt(ta)}</span></div></div></div>`})()}
+        <div class="tr tot"><span>รวม ${fmt(tq)} รายการ</span><span></span><span class="r num">${fmt(ta)}</span></div></div></div>
+      <div><div class="sectionlabel" style="margin-bottom:6px">Waste (ของเสีย) · คิดตามต้นทุน BOM</div>
+      <div class="ticket waste" id="wasteTicket">${wl.length?wl.map((l,i)=>`<div class="tr"><div style="min-width:0"><div style="overflow-wrap:anywhere">${esc(l.name)}</div><div class="muted num" style="font-size:.8rem">ต้นทุน ฿${fmt(ucOf(l),2)}</div></div>
+        <div class="stepper">${canEdit?`<button type="button" data-waste-dec="${esc(l.menuId)}" aria-label="ลด">−</button>`:""}<input id="pl-wq-${i}" type="number" min="0" inputmode="numeric" value="${fmt0(l.qty)}" ${dis} aria-label="จำนวน waste ${esc(l.name)}">${canEdit?`<button type="button" data-waste-add="${esc(l.menuId)}" aria-label="เพิ่ม">+</button>`:""}</div>
+        <div class="r num">${fmt(n(l.qty)*ucOf(l),2)}</div></div>`).join(""):`<div class="tr"><span class="muted">ไม่มี waste${canEdit?" · กดปุ่ม Waste ด้านบนแล้วแตะเมนู":""}</span><span></span><span></span></div>`}
+        <div class="tr tot"><span>รวม ${fmt(tw)} ชิ้น</span><span></span><span class="r num">${fmt(twc,2)}</span></div></div></div>`})()}
     <div><div class="sectionlabel" style="margin-bottom:6px">ค่าใช้จ่ายอื่น</div>
     <div style="display:flex;flex-direction:column;gap:6px">${pl.otherCosts.map((o,i)=>`<div class="row" style="flex-wrap:nowrap">
       <input id="pl-oc-l-${i}" data-oc="${i}" data-k="label" value="${esc(o.label)}" ${dis}>
@@ -1253,8 +1268,10 @@ function dayPL(e,d){
     <div class="l"><span>ยอดขายรวม${e.vatIncluded!==false?" (รวม VAT)":""}</span><span class="num">${fmt(c.gross,2)}</span></div>
     ${e.vatIncluded!==false?`<div class="l sub"><span>หัก VAT 7%</span><span class="num">(${fmt(c.vat,2)})</span></div>`:""}
     <div class="l key"><span>ยอดขายสุทธิ</span><span class="num">${fmt(c.net,2)}</span></div>
-    <div class="l"><span>ต้นทุนอาหาร (COGS ตาม BOM)</span><span class="num">(${fmt(c.cogs,2)})</span></div>
-    <div class="l sub"><span>Food cost %</span><span class="num">${pct(c.cogs,c.net)}</span></div>
+    ${c.waste?`<div class="l sub"><span>ต้นทุนอาหารที่ขาย (BOM)</span><span class="num">(${fmt(c.cogsSales,2)})</span></div>
+    <div class="l sub"><span>Waste (ของเสีย)</span><span class="num">(${fmt(c.waste,2)})</span></div>`:""}
+    <div class="l"><span>ต้นทุนอาหาร${c.waste?"รวม waste":" (COGS ตาม BOM)"}</span><span class="num">(${fmt(c.cogs,2)})</span></div>
+    <div class="l sub"><span>Food cost %${c.waste?` (waste ${pct(c.waste,c.net)})`:""}</span><span class="num">${pct(c.cogs,c.net)}</span></div>
     <div class="l key"><span>กำไรขั้นต้น (GP)</span><span class="num">${fmt(c.gp,2)}</span></div>
     ${eff.otherCosts.filter(o=>n(o.amount)).map(o=>`<div class="l sub"><span>${esc(o.label)}</span><span class="num">(${fmt(o.amount,2)})</span></div>`).join("")}
     <div class="l"><span>ค่าใช้จ่ายอื่นรวม</span><span class="num">(${fmt(c.other,2)})</span></div>
@@ -1265,6 +1282,7 @@ function dayPL(e,d){
 function readPL(){
   const p=S.draft;if(!p||!$("#plForm"))return;
   if($("#posTicket"))p.sales=(p.sales||[]).map((l,i)=>({...l,qty:$("#pl-tq-"+i)?n($("#pl-tq-"+i).value):n(l.qty)})).filter(x=>x.qty>0);
+  if($("#wasteTicket"))p.waste=(p.waste||[]).map((l,i)=>({...l,qty:$("#pl-wq-"+i)?n($("#pl-wq-"+i).value):n(l.qty)})).filter(x=>x.qty>0);
   p.otherCosts=p.otherCosts.map((o,i)=>({label:$("#pl-oc-l-"+i).value,amount:n($("#pl-oc-a-"+i).value)}));
 }
 
@@ -1501,8 +1519,12 @@ function bind(){
     on(".pl input,.pl select","change",rr);
     if($("#addSl"))$("#addSl").onclick=()=>{readPL();S.draft._dirty=true;S.draft._dirty=true;S.draft.sales.push({menuId:"",name:"",price:0,qty:0});render()};
     on("[data-pos-add]","click",ev=>{readPL();const id=ev.currentTarget.dataset.posAdd,m=S.menus.find(x=>x.id===id);if(!m)return;
-      const l=S.draft.sales.find(x=>x.menuId===id);if(l)l.qty=n(l.qty)+1;else S.draft.sales.push({menuId:m.id,name:m.name,price:n(m.price),qty:1});
+      const W=S.posMode==="waste"&&ev.currentTarget.classList.contains("pos-tile"),arr=W?(S.draft.waste||(S.draft.waste=[])):S.draft.sales;
+      const l=arr.find(x=>x.menuId===id);if(l)l.qty=n(l.qty)+1;else arr.push({menuId:m.id,name:m.name,price:n(m.price),qty:1});
       S.draft._dirty=true;render()});
+    on("[data-posmode]","click",ev=>{readPL();S.posMode=ev.currentTarget.dataset.posmode;render()});
+    on("[data-waste-add]","click",ev=>{readPL();const l=(S.draft.waste||[]).find(x=>x.menuId===ev.currentTarget.dataset.wasteAdd);if(l){l.qty=n(l.qty)+1;S.draft._dirty=true;render()}});
+    on("[data-waste-dec]","click",ev=>{readPL();const l=(S.draft.waste||[]).find(x=>x.menuId===ev.currentTarget.dataset.wasteDec);if(!l)return;l.qty=n(l.qty)-1;S.draft.waste=S.draft.waste.filter(x=>n(x.qty)>0);S.draft._dirty=true;render()});
     on("[data-pos-dec]","click",ev=>{readPL();const id=ev.currentTarget.dataset.posDec,l=S.draft.sales.find(x=>x.menuId===id);if(!l)return;
       l.qty=n(l.qty)-1;S.draft.sales=S.draft.sales.filter(x=>n(x.qty)>0);S.draft._dirty=true;render()});
     on("[data-delsl]","click",ev=>{readPL();S.draft._dirty=true;S.draft.sales.splice(+ev.currentTarget.dataset.delsl,1);render()});
@@ -1510,7 +1532,7 @@ function bind(){
     on("[data-deloc]","click",ev=>{readPL();S.draft._dirty=true;S.draft.otherCosts.splice(+ev.currentTarget.dataset.deloc,1);render()});
     if($("#savePL"))$("#savePL").onclick=async()=>{readPL();const p=S.draft,d=S.day;
       const ef=effPL(e,d,p);
-      const body={sales:ef.sales.filter(s=>s.name||s.menuId),cateringFee:n(ef.cateringFee),otherCosts:p.otherCosts.filter(o=>o.label||n(o.amount)),updatedBy:S.uid||"",updatedAt:new Date().toISOString()};
+      const body={sales:ef.sales.filter(s=>s.name||s.menuId),waste:(p.waste||[]).filter(w=>n(w.qty)>0).map(w=>({menuId:w.menuId,name:w.name,qty:n(w.qty),unitCogs:+menuCost(menuFor(w)).toFixed(4)})),cateringFee:n(ef.cateringFee),otherCosts:p.otherCosts.filter(o=>o.label||n(o.amount)),updatedBy:S.uid||"",updatedAt:new Date().toISOString()};
       if(await write(()=>S.db.doc(base+"/events/"+e.id+"/pl/"+d).set(body),"บันทึก P&L "+(d==="event"?"ทั้งงาน":dLabel(d))+" แล้ว")){S.pl[d]=body;S.draft=null;
         const r2=v=>Math.round(v*100)/100,act={gross:0,net:0,cogs:0,np:0,days:0,byMonth:{},byDay:{}};
         Object.entries(S.pl).forEach(([k,v])=>{const c=calcPL(e,effPL(e,k,v)),dk=k==="event"?(sortedDates(e)[0]||""):k,ym=dk.slice(0,7);
