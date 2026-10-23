@@ -62,19 +62,18 @@ h1{font-size:1.6rem} h2{font-size:1.25rem} h3{font-size:1.02rem}
   .sheet-head>div:last-child{text-align:left!important;width:100%}
   .sheet-head .row{justify-content:flex-start!important}
   .mp-pop{position:fixed!important;left:12px!important;right:12px!important;top:120px!important;width:auto!important}
-  .tbl-wrap:has(> table.rt){overflow:visible;background:var(--surface)}
-  table.rt,table.rt tbody{display:block;width:100%}
+  .tbl-wrap:has(> table.rt){overflow:visible;background:none!important;border:0!important;box-shadow:none!important;border-radius:0!important}
+  table.rt,table.rt tbody{display:flex;flex-direction:column;gap:12px;width:100%;background:none}
   table.rt thead{display:none}
-  table.rt tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 12px;padding:10px 12px;border-top:1px solid var(--line)}
-  table.rt tr:first-child{border-top:0}
+  table.rt tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px;padding:0 14px 14px;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--brand-2);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
   table.rt td{display:block;padding:0!important;border:0!important;text-align:left!important;min-width:0;white-space:normal;background:none}
   table.rt td::before{content:attr(data-label);display:block;font-size:.68rem;letter-spacing:.04em;color:var(--muted);font-family:var(--f-body);font-weight:500}
   table.rt td[data-label=""]::before,table.rt td:not([data-label])::before{display:none}
-  table.rt td:first-child{grid-column:1/-1}
+  table.rt td:first-child{grid-column:1/-1;margin:0 -14px 2px -14px!important;padding:10px 14px!important;background:var(--brand-soft)!important;font-weight:700}
   table.rt td:first-child::before{display:none}
   table.rt td:empty{display:none}
   table.rt td input,table.rt td select{width:100%!important}
-  main table.rt tr.total{background:var(--brand-soft)}
+  main table.rt tr.total{background:var(--brand-soft);border-left-color:var(--ink)}
   main table.rt tr.total td{background:none!important}
   main .tbl-wrap table:not(.rt) td:first-child{white-space:nowrap}
   main label:has(#f-format){grid-column:1/-1}
