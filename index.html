@@ -652,7 +652,7 @@ document.addEventListener("click",ev=>{
   const h=ev.target.closest("[data-home]");if(h){const k=h.dataset.home;
     if(k==="sales")goSales();
     else if(k==="cal"){S.calMonth=today().slice(0,7);S.calDay=null;go("events")}
-    else if(k==="pdf"){go("events");setTimeout(()=>{const b=$("#pdfAll");if(b)b.click()},60)}
+    else if(k==="pdf"){go("events");toast("เลือก Export PDF หรือ Export JPEG สรุปงาน ด้านบน")}
     else if(k==="switch")$("#switchBrand").click();
     else if(k==="logout"){const b=document.querySelector("header #logoutBtn");if(b)b.click()}
     else go(k);
@@ -720,7 +720,7 @@ function viewEvents(){
   else if(S.filter==="past")list=list.filter(e=>{const ds=sortedDates(e);return ds.length&&ds[ds.length-1]<t}).reverse();
   const head=`<div class="row" style="justify-content:space-between">
     <h1>งานที่คอนเฟิร์มแล้ว</h1>
-    <div class="row">${S.downloads&&S.events.length?`<button class="btn sec" id="pdfAll" type="button">Export PDF สรุปงาน</button>`:""}${S.isAdmin?`<button class="btn" data-view="new" type="button">+ Add new event</button>`:""}</div></div>
+    <div class="row">${S.downloads&&S.events.length?`<button class="btn sec" id="pdfAll" type="button">Export PDF สรุปงาน</button><button class="btn sec" id="jpgAll" type="button">Export JPEG สรุปงาน</button>`:""}${S.isAdmin?`<button class="btn" data-view="new" type="button">+ Add new event</button>`:""}</div></div>
     ${S.evReady?calView():""}
     <div class="row" style="gap:8px">${S.calDay?`<span class="chip" style="background:var(--brand-soft);color:var(--ink);padding:6px 8px 6px 14px">งานวันที่ ${dLabel(S.calDay)} <button class="x" data-calclear type="button" aria-label="ล้างวันที่">×</button></span>`
       :`<div class="filters">${[["upcoming","กำลังจะถึง"],["past","จบแล้ว"],["all","ทั้งหมด"]].map(([k,l])=>`<button class="fbtn" data-filter="${k}" aria-pressed="${S.filter===k}" type="button">${l} <span class="num">${counts[k]}</span></button>`).join("")}</div>`}</div>`;
@@ -771,7 +771,7 @@ function homeItems(){
   it.push(["dash","chart","Dashboard"]);
   if(S.isOwner||role==="management")it.push(["overall","pie","ภาพรวม 2 แบรนด์"]);
   it.push(["notif","bell","แจ้งเตือน"]);
-  if(S.downloads)it.push(["pdf","pdf","Export PDF สรุปงาน"]);
+  if(S.downloads)it.push(["pdf","pdf","Export สรุปงาน"]);
   const other=[];
   if(S.isSys)other.push(["menus","book","เมนู & BOM"],["users","users","ผู้ใช้ & สิทธิ์"]);
   if(allowedBrands().length>1)other.push(["switch","swap","เปลี่ยนแบรนด์"]);
@@ -1083,7 +1083,7 @@ function viewEvent(){
       <div class="sectionlabel" style="margin-top:6px">ลูกค้า/ผู้ติดต่อ</div><h1>${esc(e.customer)}</h1><div class="muted">${esc(e.venue)}</div>
       ${safeUrl(e.mapUrl)?`<a class="btn sec small" href="${esc(e.mapUrl)}" target="_blank" rel="noopener noreferrer" style="display:inline-block;margin-top:8px;text-decoration:none">📍 เปิดใน Google Maps</a>`:""}</div>
       <div style="text-align:right"><div class="sectionlabel">${isBooth(e)?"Target sales":"มูลค่างาน"}${e.vatIncluded!==false?" (รวม VAT)":""}</div><div class="num" style="font-size:1.5rem;font-weight:600">฿${fmt(eventTotal(e))}</div>
-      <div class="row" style="justify-content:flex-end;margin-top:6px">${S.downloads?`<button class="btn small" id="pdfEv" type="button">Export PDF</button>`:""}${S.isAdmin?`<button class="btn sec small" id="editEv" type="button">แก้ไข</button><button class="btn sec small" id="delEv" type="button">ลบ</button>`:""}</div></div></div>
+      <div class="row" style="justify-content:flex-end;margin-top:6px">${S.downloads?`<button class="btn small" id="pdfEv" type="button">Export PDF</button><button class="btn sec small" id="jpgEv" type="button">Export JPEG</button>`:""}${S.isAdmin?`<button class="btn sec small" id="editEv" type="button">แก้ไข</button><button class="btn sec small" id="delEv" type="button">ลบ</button>`:""}</div></div></div>
     ${confirmDel?`<div class="confirm">ลบงานนี้ถาวร? ข้อมูล P&amp;L ของงานจะถูกซ่อนไปด้วย <button class="btn small" id="delYes" type="button">ลบเลย</button><button class="btn sec small" id="delNo" type="button">ไม่ลบ</button></div>`:""}
     <dl class="kv" style="margin:0">
       <div><dt>โทร</dt><dd>${e.phone?`<span style="user-select:all">${esc(e.phone)}</span>`:"–"}</dd></div>
@@ -1097,7 +1097,7 @@ function viewEvent(){
       ${e.note?`<div class="wide"><dt>หมายเหตุ</dt><dd>${esc(e.note)}</dd></div>`:""}
     </dl>
   </section>`:compactHead}
-  ${tab==="pl"&&S.downloads?`<div class="row" style="justify-content:flex-end"><button class="btn" id="pdfPL" type="button">Export PDF</button></div>`:""}
+  ${tab==="pl"&&S.downloads?`<div class="row" style="justify-content:flex-end"><button class="btn sec" id="jpgPL" type="button">Export JPEG</button><button class="btn" id="pdfPL" type="button">Export PDF</button></div>`:""}
   ${isBooth(e)&&tab==="info"?`<section style="display:flex;flex-direction:column;gap:10px"><h2>Feasibility บูธ</h2>${feasPanel(e,calcFeas(e))}
     <p class="muted" style="margin:0;font-size:.82rem">${inlineFc()?"คิดจากค่าใช้จ่ายที่กรอกไว้ในงานนี้ · กดแก้ไขงานเพื่อเปลี่ยนตัวเลข":"คิดจาก Fixed cost Booth ณ วันที่บันทึกงาน · กดแก้ไขงานเพื่อคำนวณใหม่ด้วยค่าปัจจุบัน"}</p></section>`:""}
   ${!isBooth(e)&&tab==="info"?viewPayments(e):""}
@@ -1242,12 +1242,12 @@ async function htmlToPdf(html,filename,btn,label,landscape){
   }catch(x){if(x?.code!=="declined")toast(x?.code==="unavailable"?"หน้านี้บันทึกไฟล์ไม่ได้":"สร้าง PDF ไม่สำเร็จ ลองใหม่อีกครั้ง")}
   finally{btn.disabled=false;btn.textContent=label}
 }
-async function htmlToJpg(html,filename,btn,label){
+async function htmlToJpg(html,filename,btn,label,landscape){
   btn.disabled=true;btn.textContent="กำลังสร้างรูป…";
   try{
     await loadScript("https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js");
     const host=document.createElement("div");
-    host.style.cssText="position:absolute;left:-10000px;top:0;width:794px;background:#ffffff;color:#1b1a19;font-family:var(--f-body);font-size:13px;line-height:1.5;"+PDF_BASE+(PDF_VARS[S.brand]||"");
+    host.style.cssText="position:absolute;left:-10000px;top:0;width:"+(landscape?1123:794)+"px;background:#ffffff;color:#1b1a19;font-family:var(--f-body);font-size:13px;line-height:1.5;"+PDF_BASE+(PDF_VARS[S.brand]||"");
     host.innerHTML=html;document.body.appendChild(host);
     try{await document.fonts.ready}catch(_){}
     const canvas=await window.html2canvas(host,{scale:2,backgroundColor:"#ffffff"});host.remove();
@@ -1399,7 +1399,7 @@ function viewDash(){
     <label>ตั้งแต่<input id="rpFrom" type="date" value="${esc(S.rpFrom||ym+"-01")}" style="width:auto"></label>
     <label>ถึง<input id="rpTo" type="date" value="${esc(S.rpTo||monthEnd(ym))}" style="width:auto"></label>
     <div class="row" style="gap:6px">${[["เดือนนี้",0],["3 เดือน",2],["ทั้งปี","y"]].map(([l,k])=>`<button class="btn sec small" data-rp="${k}" type="button">${l}</button>`).join("")}</div>
-    <div class="row" style="gap:6px;margin-left:auto"><button class="btn sec" id="rpCancel" type="button">ยกเลิก</button><button class="btn" id="pdfRange" type="button">ดาวน์โหลด PDF</button></div>
+    <div class="row" style="gap:6px;margin-left:auto"><button class="btn sec" id="rpCancel" type="button">ยกเลิก</button><button class="btn sec" id="jpgRange" type="button">ดาวน์โหลด JPEG</button><button class="btn" id="pdfRange" type="button">ดาวน์โหลด PDF</button></div>
   </section>`:""}
   <div class="grid kpis">
     ${card("จำนวนบูธ",fmt(t.booth)+" งาน",`${fmt(t.boothDays)} วันออกบูธ · Catering ${fmt(t.cat)} งาน`)}
@@ -1728,10 +1728,14 @@ function bind(){
     on("#rpFrom,#rpTo","change",()=>{S.rpFrom=$("#rpFrom").value;S.rpTo=$("#rpTo").value});
     on("[data-rp]","click",ev=>{const k=ev.currentTarget.dataset.rp,ym=S.dashMonth;
       if(k==="y"){S.rpFrom=ym.slice(0,4)+"-01-01";S.rpTo=ym.slice(0,4)+"-12-31"}else{S.rpFrom=ymShift(ym,-n(k))+"-01";S.rpTo=monthEnd(ym)}render()});
+    if($("#jpgRange"))$("#jpgRange").onclick=ev=>{const f=$("#rpFrom").value,t=$("#rpTo").value;
+      if(!f||!t){toast("เลือกวันที่ให้ครบ");return}if(t<f){toast("วันที่สิ้นสุดต้องไม่ก่อนวันเริ่ม");return}
+      S.rpFrom=f;S.rpTo=t;htmlToJpg(rangeSheet(f,t),`รายงาน_${safeName(BRANDS[S.brand].name)}_${f}_ถึง_${t}.jpg`,ev.currentTarget,"ดาวน์โหลด JPEG",true)};
     if($("#pdfRange"))$("#pdfRange").onclick=ev=>{const f=$("#rpFrom").value,t=$("#rpTo").value;
       if(!f||!t){toast("เลือกวันที่ให้ครบ");return}if(t<f){toast("วันที่สิ้นสุดต้องไม่ก่อนวันเริ่ม");return}
       S.rpFrom=f;S.rpTo=t;htmlToPdf(rangeSheet(f,t),`รายงาน_${safeName(BRANDS[S.brand].name)}_${f}_ถึง_${t}.pdf`,ev.currentTarget,"ดาวน์โหลด PDF",true)};
   }
+  if($("#jpgAll"))$("#jpgAll").onclick=ev=>{const d=new Date();htmlToJpg(summarySheet(),`สรุปงาน_${safeName(BRANDS[S.brand].name)}_${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}.jpg`,ev.currentTarget,"Export JPEG สรุปงาน",true)};
   if($("#pdfAll"))$("#pdfAll").onclick=ev=>{const d=new Date();htmlToPdf(summarySheet(),`สรุปงาน_${safeName(BRANDS[S.brand].name)}_${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}.pdf`,ev.currentTarget,"Export PDF สรุปงาน",true)};
 
   /* form */
@@ -1833,6 +1837,8 @@ function bind(){
     on("[data-updelno]","click",()=>{S.upDel=null;rerender()});
     on("[data-updelyes]","click",async ev=>{const id=ev.currentTarget.dataset.updelyes;if(await write(()=>S.db.doc(base+"/events/"+e.id+"/updates/"+id).delete(),"ลบอัปเดตแล้ว")){S.upDel=null;rerender()}});
     if($("#pdfEv"))$("#pdfEv").onclick=ev=>exportPDF(e,ev.currentTarget);
+    if($("#jpgEv"))$("#jpgEv").onclick=ev=>htmlToJpg(pdfSheet(e),(safeName(e.customer)||"event")+"_"+(sortedDates(e)[0]||"")+".jpg",ev.currentTarget,"Export JPEG",false);
+    if($("#jpgPL"))$("#jpgPL").onclick=ev=>htmlToJpg(plSheet(e),"PL_"+(safeName(e.customer)||"event")+"_"+(sortedDates(e)[0]||"")+".jpg",ev.currentTarget,"Export JPEG",false);
     if($("#pdfPL"))$("#pdfPL").onclick=ev=>htmlToPdf(plSheet(e),"PL_"+(safeName(e.customer)||"event")+"_"+(sortedDates(e)[0]||"")+".pdf",ev.currentTarget,"Export PDF",false);
     if($("#editEv"))$("#editEv").onclick=()=>go("new",{event:e});
     if($("#delEv"))$("#delEv").onclick=()=>{S.confirmDel=e.id;render()};
