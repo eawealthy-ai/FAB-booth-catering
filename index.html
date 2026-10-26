@@ -370,7 +370,6 @@ tr.total td{background:var(--brand-soft)}
       <button class="tab" data-view="home" type="button">หน้าแรก</button>
       <button class="tab" data-view="overall" id="tabOverall" type="button" hidden>ภาพรวม 2 แบรนด์</button>
       <button class="tab" data-view="dash" type="button">Dashboard</button>
-      <button class="tab" data-view="feas" type="button">Run Feasibility</button>
       <button class="tab" data-view="events" type="button">งานทั้งหมด</button>
       <button class="tab" data-view="new" id="tabNew" type="button">+ Add new event</button>
       <button class="tab" data-view="menus" id="tabMenus" type="button" hidden>เมนู &amp; BOM</button>
@@ -767,7 +766,7 @@ function homeItems(){
   it.push(["events","list","งานทั้งหมด"],["cal","cal","ปฏิทินงาน"]);
   if(S.isAdmin)it.push(["new","plus","Add new event"]);
   if(S.canSales)it.push(["sales","pos","กรอกยอดขาย"]);
-  it.push(["dash","chart","Dashboard"],["feas","feas","Run Feasibility"]);
+  it.push(["dash","chart","Dashboard"]);
   if(S.isOwner||role==="management")it.push(["overall","pie","ภาพรวม 2 แบรนด์"]);
   it.push(["notif","bell","แจ้งเตือน"]);
   if(S.downloads)it.push(["pdf","pdf","Export PDF สรุปงาน"]);
@@ -811,7 +810,7 @@ function viewFeas(){
   const z=fzState(),e=fzEvent(z),c=calcFeas(e),tsc=inlineFc();
   const inp=(id,l,v,ph="",st="")=>`<label>${l}<input id="${id}" type="number" min="0" step="any" inputmode="decimal" value="${esc(v)}" placeholder="${ph}" ${st}></label>`;
   return `<div class="row" style="justify-content:space-between"><div><div class="sectionlabel">ประเมินก่อนรับงาน · ยังไม่ต้องสร้างงาน</div><h1>Run Feasibility</h1></div>
-    <div class="row">${S.downloads?`<button class="btn sec" id="fzPdf" type="button">Export PDF</button><button class="btn" id="fzXlsx" type="button">Export Excel</button>`:""}<button class="btn sec" id="fzReset" type="button">ล้างค่า</button></div></div>
+    <div class="row"><button class="btn sec" data-view="new" type="button">← Add new event</button>${S.downloads?`<button class="btn sec" id="fzPdf" type="button">Export PDF</button><button class="btn" id="fzXlsx" type="button">Export Excel</button>`:""}<button class="btn sec" id="fzReset" type="button">ล้างค่า</button></div></div>
   <section class="panel" id="fzForm" style="display:flex;flex-direction:column;gap:12px">
     <label>ชื่องาน / สถานที่ (ไม่บังคับ)<input id="fz-name" value="${esc(z.name)}" placeholder="เช่น เซ็นทรัลลาดพร้าว"></label>
     <div class="grid">
@@ -913,7 +912,8 @@ function viewForm(){
   if(!S.isAdmin)return `<div class="empty">เฉพาะผู้ดูแลที่ลงทะเบียนงานได้</div>`;
   const e=S.draft||(S.draft=JSON.parse(JSON.stringify(S.editEvent||blankEvent())));
   const total=eventTotal(e);
-  return `<div><div class="sectionlabel">${S.editEvent?"แก้ไขงาน":"ยืนยันงาน"}</div><h1>${S.editEvent?"แก้ไขข้อมูลงาน":"Add new event · Catering / Booth"}</h1></div>
+  return `<div class="row" style="justify-content:space-between;align-items:flex-end"><div><div class="sectionlabel">${S.editEvent?"แก้ไขงาน":"ยืนยันงาน"}</div><h1>${S.editEvent?"แก้ไขข้อมูลงาน":"Add new event · Catering / Booth"}</h1></div>
+    ${S.editEvent?"":`<button class="btn sec" data-view="feas" type="button" style="display:inline-flex;align-items:center;gap:8px">${ico("feas",20)}Run Feasibility</button>`}</div>
   <form id="evForm" class="panel" style="display:flex;flex-direction:column;gap:18px" novalidate>
     <div class="grid">
       <label>รูปแบบงาน<select id="f-format">${(FORMATS.includes(e.format)?FORMATS:[...FORMATS,e.format]).map(o=>`<option ${e.format===o?"selected":""}>${esc(o)}</option>`).join("")}</select></label>
