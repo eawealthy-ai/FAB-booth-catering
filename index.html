@@ -137,6 +137,15 @@ textarea{min-height:64px;resize:vertical}
 /* event list */
 .evlist{display:flex;flex-direction:column;gap:10px}
 .m-only{display:none!important}
+.xmenu{position:relative;display:inline-block}
+.xmenu>summary{list-style:none;display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.xmenu>summary::-webkit-details-marker{display:none}
+.xmenu-pop{position:absolute;left:0;top:calc(100% + 6px);z-index:9;min-width:200px;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:6px;display:flex;flex-direction:column;gap:2px}
+.xmenu-pop button{display:flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left;background:none;border:0;border-radius:10px;padding:9px 12px;color:var(--ink)}
+.xmenu-pop button:hover,.xmenu-pop button:focus-visible{background:var(--brand-soft)}
+.xmenu-pop small{color:var(--muted);font-size:.76rem}
+.xmenu-pop button:disabled{opacity:.6}
+.xmenu.r .xmenu-pop{left:auto;right:0}
 .hicon{position:relative;border:0;background:transparent;color:var(--ink);width:40px;height:40px;display:inline-grid;place-items:center;border-radius:12px}
 .hicon .nbadge{position:absolute;top:0;right:-2px;margin:0;min-width:18px;height:18px;font-size:.68rem;padding:0 4px}
 .hk{border-radius:24px;padding:22px 18px 26px;color:var(--ink);background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);display:flex;flex-direction:column;gap:18px}
@@ -647,6 +656,8 @@ function enterBrand(b){
 }
 document.addEventListener("click",ev=>{
   const p=ev.target.closest("[data-pick]");if(p){enterBrand(p.dataset.pick);return}
+  if(!ev.target.closest(".xmenu"))document.querySelectorAll(".xmenu[open]").forEach(d=>d.open=false);
+  else if(ev.target.closest(".xmenu-pop button"))setTimeout(()=>{const d=ev.target.closest(".xmenu");if(d)d.open=false},0);
   if(ev.target.closest("[data-fzgo]")){fzToEvent();return}
   if(ev.target.closest("[data-fzedit]")){if(S.view==="new"&&$("#evForm"))readForm();if(S.draft)delete S.draft._fz;render();return}
   const h=ev.target.closest("[data-home]");if(h){const k=h.dataset.home;
@@ -661,6 +672,8 @@ document.addEventListener("click",ev=>{
 });
 $("#switchBrand").onclick=()=>{leaveBrand();ls("bc.brand",null);showGate()};
 $("#hdrBell").onclick=()=>go("notif");
+document.addEventListener("toggle",ev=>{const d=ev.target;if(!d.classList||!d.classList.contains("xmenu")||!d.open)return;
+  d.classList.remove("r");const r=d.getBoundingClientRect();if(r.left+210>document.documentElement.clientWidth-8)d.classList.add("r")},true);
 $("#hdrPower").onclick=()=>{const b=document.querySelector("header #logoutBtn");if(b)b.click()};
 function go(view,opts={}){
   if(view==="overall")S.allEvents=null;
@@ -720,7 +733,7 @@ function viewEvents(){
   else if(S.filter==="past")list=list.filter(e=>{const ds=sortedDates(e);return ds.length&&ds[ds.length-1]<t}).reverse();
   const head=`<div class="row" style="justify-content:space-between">
     <h1>งานที่คอนเฟิร์มแล้ว</h1>
-    <div class="row">${S.downloads&&S.events.length?`<button class="btn sec" id="pdfAll" type="button">Export PDF สรุปงาน</button><button class="btn sec" id="jpgAll" type="button">Export JPEG สรุปงาน</button>`:""}${S.isAdmin?`<button class="btn" data-view="new" type="button">+ Add new event</button>`:""}</div></div>
+    <div class="row">${S.downloads&&S.events.length?xMenu([["pdfAll","PDF","สรุปงานทั้งหมด"],["jpgAll","JPEG","รูปภาพ ส่งต่อในไลน์"]]):""}${S.isAdmin?`<button class="btn" data-view="new" type="button">+ Add new event</button>`:""}</div></div>
     ${S.evReady?calView():""}
     <div class="row" style="gap:8px">${S.calDay?`<span class="chip" style="background:var(--brand-soft);color:var(--ink);padding:6px 8px 6px 14px">งานวันที่ ${dLabel(S.calDay)} <button class="x" data-calclear type="button" aria-label="ล้างวันที่">×</button></span>`
       :`<div class="filters">${[["upcoming","กำลังจะถึง"],["past","จบแล้ว"],["all","ทั้งหมด"]].map(([k,l])=>`<button class="fbtn" data-filter="${k}" aria-pressed="${S.filter===k}" type="button">${l} <span class="num">${counts[k]}</span></button>`).join("")}</div>`}</div>`;
@@ -803,6 +816,12 @@ function bottomNav(u){
   return b("home","home","หน้าแรก")+b("events","list","งานทั้งหมด")+`<button class="bn-c" data-home="${c[0]}" type="button" aria-label="${c[2]}"><span>${ico(c[1],28)}</span><em>${c[2]}</em></button>`+b("dash","chart","Dashboard")+b("notif","bell","แจ้งเตือน");
 }
 
+/* export dropdown */
+function xMenu(items,cls="btn sec"){
+  return `<details class="xmenu"><summary class="${cls}">${ico("pdf",18)}<span>Export</span><span aria-hidden="true">▾</span></summary>
+    <div class="xmenu-pop" role="menu">${items.map(([id,l,sub])=>`<button type="button" role="menuitem" id="${id}"><b>${l}</b>${sub?`<small>${sub}</small>`:""}</button>`).join("")}</div></details>`;
+}
+
 /* standalone feasibility calculator */
 function fzState(){S.fz=S.fz||{};return S.fz[S.brand]||(S.fz[S.brand]={name:"",days:"",salesPerDay:"",vatIn:true,rent:"",staff:"",stay:false,foodPct:"",lines:{}})}
 function fzEvent(z){return {customer:z.name||"Run Feasibility",format:"Booth",vatIncluded:!!z.vatIn,dates:Array.from({length:Math.max(1,Math.min(60,Math.round(n(z.days))||1))},(_,i)=>"d"+String(i).padStart(2,"0")),
@@ -812,7 +831,7 @@ function viewFeas(){
   const z=fzState(),e=fzEvent(z),c=calcFeas(e),tsc=inlineFc();
   const inp=(id,l,v,ph="",st="")=>`<label>${l}<input id="${id}" type="number" min="0" step="any" inputmode="decimal" value="${esc(v)}" placeholder="${ph}" ${st}></label>`;
   return `<div class="row" style="justify-content:space-between"><div><div class="sectionlabel">ประเมินก่อนรับงาน · ยังไม่ต้องสร้างงาน</div><h1>Run Feasibility</h1></div>
-    <div class="row"><button class="btn sec" data-view="new" type="button">← Add new event</button>${S.downloads?`<button class="btn sec" id="fzPdf" type="button">Export PDF</button><button class="btn sec" id="fzJpg" type="button">Export JPEG</button><button class="btn" id="fzXlsx" type="button">Export Excel</button>`:""}<button class="btn sec" id="fzReset" type="button">ล้างค่า</button></div></div>
+    <div class="row"><button class="btn sec" data-view="new" type="button">← Add new event</button>${S.downloads?xMenu([["fzPdf","PDF",""],["fzJpg","JPEG","รูปภาพ"],["fzXlsx","Excel",".xlsx"]]):""}<button class="btn sec" id="fzReset" type="button">ล้างค่า</button></div></div>
   <section class="panel" id="fzForm" style="display:flex;flex-direction:column;gap:12px">
     <label>ชื่องาน / สถานที่ (ไม่บังคับ)<input id="fz-name" value="${esc(z.name)}" placeholder="เช่น เซ็นทรัลลาดพร้าว"></label>
     <div class="grid">
@@ -1083,7 +1102,7 @@ function viewEvent(){
       <div class="sectionlabel" style="margin-top:6px">ลูกค้า/ผู้ติดต่อ</div><h1>${esc(e.customer)}</h1><div class="muted">${esc(e.venue)}</div>
       ${safeUrl(e.mapUrl)?`<a class="btn sec small" href="${esc(e.mapUrl)}" target="_blank" rel="noopener noreferrer" style="display:inline-block;margin-top:8px;text-decoration:none">📍 เปิดใน Google Maps</a>`:""}</div>
       <div style="text-align:right"><div class="sectionlabel">${isBooth(e)?"Target sales":"มูลค่างาน"}${e.vatIncluded!==false?" (รวม VAT)":""}</div><div class="num" style="font-size:1.5rem;font-weight:600">฿${fmt(eventTotal(e))}</div>
-      <div class="row" style="justify-content:flex-end;margin-top:6px">${S.downloads?`<button class="btn small" id="pdfEv" type="button">Export PDF</button><button class="btn sec small" id="jpgEv" type="button">Export JPEG</button>`:""}${S.isAdmin?`<button class="btn sec small" id="editEv" type="button">แก้ไข</button><button class="btn sec small" id="delEv" type="button">ลบ</button>`:""}</div></div></div>
+      <div class="row" style="justify-content:flex-end;margin-top:6px">${S.downloads?xMenu([["pdfEv","PDF","ใบสรุปงาน"],["jpgEv","JPEG","รูปภาพ"]],"btn small"):""}${S.isAdmin?`<button class="btn sec small" id="editEv" type="button">แก้ไข</button><button class="btn sec small" id="delEv" type="button">ลบ</button>`:""}</div></div></div>
     ${confirmDel?`<div class="confirm">ลบงานนี้ถาวร? ข้อมูล P&amp;L ของงานจะถูกซ่อนไปด้วย <button class="btn small" id="delYes" type="button">ลบเลย</button><button class="btn sec small" id="delNo" type="button">ไม่ลบ</button></div>`:""}
     <dl class="kv" style="margin:0">
       <div><dt>โทร</dt><dd>${e.phone?`<span style="user-select:all">${esc(e.phone)}</span>`:"–"}</dd></div>
@@ -1097,7 +1116,7 @@ function viewEvent(){
       ${e.note?`<div class="wide"><dt>หมายเหตุ</dt><dd>${esc(e.note)}</dd></div>`:""}
     </dl>
   </section>`:compactHead}
-  ${tab==="pl"&&S.downloads?`<div class="row" style="justify-content:flex-end"><button class="btn sec" id="jpgPL" type="button">Export JPEG</button><button class="btn" id="pdfPL" type="button">Export PDF</button></div>`:""}
+  ${tab==="pl"&&S.downloads?`<div class="row" style="justify-content:flex-end">${xMenu([["pdfPL","PDF","งบกำไรขาดทุน"],["jpgPL","JPEG","รูปภาพ"]],"btn")}</div>`:""}
   ${isBooth(e)&&tab==="info"?`<section style="display:flex;flex-direction:column;gap:10px"><h2>Feasibility บูธ</h2>${feasPanel(e,calcFeas(e))}
     <p class="muted" style="margin:0;font-size:.82rem">${inlineFc()?"คิดจากค่าใช้จ่ายที่กรอกไว้ในงานนี้ · กดแก้ไขงานเพื่อเปลี่ยนตัวเลข":"คิดจาก Fixed cost Booth ณ วันที่บันทึกงาน · กดแก้ไขงานเพื่อคำนวณใหม่ด้วยค่าปัจจุบัน"}</p></section>`:""}
   ${!isBooth(e)&&tab==="info"?viewPayments(e):""}
@@ -1257,7 +1276,7 @@ async function htmlToJpg(html,filename,btn,label,landscape){
   finally{btn.disabled=false;btn.textContent=label}
 }
 const safeName=v=>String(v||"").replace(/[\\/:*?"<>|\[\]]/g,"").trim();
-function exportPDF(e,btn){return htmlToPdf(pdfSheet(e),(safeName(e.customer)||"event")+"_"+(sortedDates(e)[0]||"")+".pdf",btn,"Export PDF",false)}
+function exportPDF(e,btn){return htmlToPdf(pdfSheet(e),(safeName(e.customer)||"event")+"_"+(sortedDates(e)[0]||"")+".pdf",btn,"PDF",false)}
 /* activity log & read receipts */
 const ACT_LABEL={unlockreq:"ขอแก้ไข",unlock:"อนุมัติแก้ไข",relock:"ล็อกงาน",new:"งานใหม่",edit:"แก้ไขงาน",del:"ลบงาน",update:"อัปเดต",slip:"แนบสลิป",pl:"บันทึกยอดขาย"};
 async function logAct(type,e,text){
@@ -1392,7 +1411,7 @@ function viewDash(){
         </div>`})():""}
       </div>
       <button class="btn sec small" data-dm="1" type="button" aria-label="เดือนถัดไป">›</button>
-      ${S.downloads?`<button class="btn" id="rpToggle" type="button" aria-expanded="${!!S.rpOpen}">Export PDF</button>`:""}
+      ${S.downloads?`<button class="btn" id="rpToggle" type="button" aria-expanded="${!!S.rpOpen}" style="display:inline-flex;align-items:center;gap:6px">${ico("pdf",18)}Export ▾</button>`:""}
     </div></div>
   ${S.downloads&&S.rpOpen?`<section class="panel" style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;padding:14px 16px">
     <div style="flex:1 1 100%"><h3>เลือกช่วงเวลาของรายงาน</h3></div>
@@ -1691,8 +1710,8 @@ function bind(){
     const upd=()=>{const z=readFz();$("#fzOut").innerHTML=fzOut(z,calcFeas(fzEvent(z)))};
     on("#fzForm input","input",upd);on("#fzForm input[type=checkbox]","change",upd);
     if($("#fzReset"))$("#fzReset").onclick=()=>{delete S.fz[S.brand];render()};
-    if($("#fzPdf"))$("#fzPdf").onclick=ev=>{const z=readFz(),c=calcFeas(fzEvent(z));htmlToPdf(fzPdfHtml(z,c),fzFile(z,"pdf"),ev.currentTarget,"Export PDF",false)};
-    if($("#fzJpg"))$("#fzJpg").onclick=ev=>{const z=readFz(),c=calcFeas(fzEvent(z));htmlToJpg(fzPdfHtml(z,c),fzFile(z,"jpg"),ev.currentTarget,"Export JPEG")};
+    if($("#fzPdf"))$("#fzPdf").onclick=ev=>{const z=readFz(),c=calcFeas(fzEvent(z));htmlToPdf(fzPdfHtml(z,c),fzFile(z,"pdf"),ev.currentTarget,"PDF",false)};
+    if($("#fzJpg"))$("#fzJpg").onclick=ev=>{const z=readFz(),c=calcFeas(fzEvent(z));htmlToJpg(fzPdfHtml(z,c),fzFile(z,"jpg"),ev.currentTarget,"JPEG")};
     if($("#fzXlsx"))$("#fzXlsx").onclick=ev=>{const z=readFz();fzExcel(z,calcFeas(fzEvent(z)),ev.currentTarget)};
   }
   on("[data-calm]","click",ev=>{S.calMonth=ymShift(S.calMonth,+ev.currentTarget.dataset.calm);S.calDay=null;render()});
@@ -1735,8 +1754,8 @@ function bind(){
       if(!f||!t){toast("เลือกวันที่ให้ครบ");return}if(t<f){toast("วันที่สิ้นสุดต้องไม่ก่อนวันเริ่ม");return}
       S.rpFrom=f;S.rpTo=t;htmlToPdf(rangeSheet(f,t),`รายงาน_${safeName(BRANDS[S.brand].name)}_${f}_ถึง_${t}.pdf`,ev.currentTarget,"ดาวน์โหลด PDF",true)};
   }
-  if($("#jpgAll"))$("#jpgAll").onclick=ev=>{const d=new Date();htmlToJpg(summarySheet(),`สรุปงาน_${safeName(BRANDS[S.brand].name)}_${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}.jpg`,ev.currentTarget,"Export JPEG สรุปงาน",true)};
-  if($("#pdfAll"))$("#pdfAll").onclick=ev=>{const d=new Date();htmlToPdf(summarySheet(),`สรุปงาน_${safeName(BRANDS[S.brand].name)}_${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}.pdf`,ev.currentTarget,"Export PDF สรุปงาน",true)};
+  if($("#jpgAll"))$("#jpgAll").onclick=ev=>{const d=new Date();htmlToJpg(summarySheet(),`สรุปงาน_${safeName(BRANDS[S.brand].name)}_${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}.jpg`,ev.currentTarget,"JPEG",true)};
+  if($("#pdfAll"))$("#pdfAll").onclick=ev=>{const d=new Date();htmlToPdf(summarySheet(),`สรุปงาน_${safeName(BRANDS[S.brand].name)}_${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}.pdf`,ev.currentTarget,"PDF",true)};
 
   /* form */
   if(S.view==="new"&&$("#evForm")){
@@ -1837,9 +1856,9 @@ function bind(){
     on("[data-updelno]","click",()=>{S.upDel=null;rerender()});
     on("[data-updelyes]","click",async ev=>{const id=ev.currentTarget.dataset.updelyes;if(await write(()=>S.db.doc(base+"/events/"+e.id+"/updates/"+id).delete(),"ลบอัปเดตแล้ว")){S.upDel=null;rerender()}});
     if($("#pdfEv"))$("#pdfEv").onclick=ev=>exportPDF(e,ev.currentTarget);
-    if($("#jpgEv"))$("#jpgEv").onclick=ev=>htmlToJpg(pdfSheet(e),(safeName(e.customer)||"event")+"_"+(sortedDates(e)[0]||"")+".jpg",ev.currentTarget,"Export JPEG",false);
-    if($("#jpgPL"))$("#jpgPL").onclick=ev=>htmlToJpg(plSheet(e),"PL_"+(safeName(e.customer)||"event")+"_"+(sortedDates(e)[0]||"")+".jpg",ev.currentTarget,"Export JPEG",false);
-    if($("#pdfPL"))$("#pdfPL").onclick=ev=>htmlToPdf(plSheet(e),"PL_"+(safeName(e.customer)||"event")+"_"+(sortedDates(e)[0]||"")+".pdf",ev.currentTarget,"Export PDF",false);
+    if($("#jpgEv"))$("#jpgEv").onclick=ev=>htmlToJpg(pdfSheet(e),(safeName(e.customer)||"event")+"_"+(sortedDates(e)[0]||"")+".jpg",ev.currentTarget,"JPEG",false);
+    if($("#jpgPL"))$("#jpgPL").onclick=ev=>htmlToJpg(plSheet(e),"PL_"+(safeName(e.customer)||"event")+"_"+(sortedDates(e)[0]||"")+".jpg",ev.currentTarget,"JPEG",false);
+    if($("#pdfPL"))$("#pdfPL").onclick=ev=>htmlToPdf(plSheet(e),"PL_"+(safeName(e.customer)||"event")+"_"+(sortedDates(e)[0]||"")+".pdf",ev.currentTarget,"PDF",false);
     if($("#editEv"))$("#editEv").onclick=()=>go("new",{event:e});
     if($("#delEv"))$("#delEv").onclick=()=>{S.confirmDel=e.id;render()};
     if($("#delNo"))$("#delNo").onclick=()=>{S.confirmDel=null;render()};
