@@ -647,6 +647,8 @@ function enterBrand(b){
 }
 document.addEventListener("click",ev=>{
   const p=ev.target.closest("[data-pick]");if(p){enterBrand(p.dataset.pick);return}
+  if(ev.target.closest("[data-fzgo]")){fzToEvent();return}
+  if(ev.target.closest("[data-fzedit]")){if(S.view==="new"&&$("#evForm"))readForm();if(S.draft)delete S.draft._fz;render();return}
   const h=ev.target.closest("[data-home]");if(h){const k=h.dataset.home;
     if(k==="sales")goSales();
     else if(k==="cal"){S.calMonth=today().slice(0,7);S.calDay=null;go("events")}
@@ -823,7 +825,18 @@ function viewFeas(){
     <label style="display:flex;flex-direction:row;align-items:center;justify-content:flex-start;gap:8px;font-weight:500"><input id="fz-vat" type="checkbox" ${z.vatIn?"checked":""} style="width:auto"> Target sales รวม VAT 7% แล้ว</label>
     ${tsc?"":`<p class="muted" style="margin:0;font-size:.82rem">ค่าแรง OT เบี้ยเลี้ยง ที่พัก ค่าขนส่ง และ Food cost ${fmt(n(fcNow().foodPct)*100,1)}% ใช้ Fixed cost Booth ของแบรนด์ ${esc(BRANDS[S.brand].name)}</p>`}
   </section>
-  <div id="fzOut">${feasPanel(e,c)}</div>`;
+  <div id="fzOut">${fzOut(z,c)}</div>`;
+}
+function fzOut(z,c){
+  return feasPanel(fzEvent(z),c)+(c.gross&&S.isAdmin?`<div class="panel" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px">
+    <div><b>${c.np>0?"ผ่าน · มีกำไร":"ยังขาดทุน"}</b><div class="muted" style="font-size:.85rem">กดยืนยันเพื่อไปหน้า Add new event พร้อมตัวเลขชุดนี้ ไม่ต้องกรอก Feasibility ซ้ำ</div></div>
+    <button class="btn" data-fzgo type="button">✓ ยืนยัน · Add new event</button></div>`:"");
+}
+function fzToEvent(){
+  const z=readFz(),fe=fzEvent(z);
+  go("new");
+  S.draft={...blankEvent(),format:"Booth",customer:z.name||"",packages:[],vatIncluded:!!z.vatIn,feas:fe.feas,_fz:{days:fe.dates.length}};
+  render();toast("นำตัวเลขจาก Run Feasibility มาแล้ว · เลือกวันที่และกรอกรายละเอียดงานต่อ");
 }
 function readFz(){
   const z=fzState(),v=id=>{const el=$("#"+id);return el?el.value:undefined};
@@ -980,6 +993,13 @@ function formSlip(e){
   </div>`;
 }
 function boothInputs(e){
+  if(e._fz){const c=calcFeas(e),d=sortedDates(e).length;
+    return `<div style="display:flex;flex-direction:column;gap:12px;border-top:1px solid var(--line);padding-top:14px">
+      <div class="row" style="justify-content:space-between"><div><h3>Feasibility บูธ ✓</h3><p class="muted" style="margin:2px 0 0;font-size:.85rem">ใช้ตัวเลขจาก Run Feasibility · Target ฿${fmt(n(e.feas.salesPerDay))}/วัน${e.vatIncluded!==false?" (รวม VAT)":""}</p></div>
+        <button class="btn sec small" data-fzedit type="button">แก้ไขตัวเลข</button></div>
+      ${d&&d!==e._fz.days?`<p class="notice warn" style="margin:0">ประเมินไว้ ${e._fz.days} วัน แต่เลือกวันจัดงาน ${d} วัน · ตัวเลขด้านล่างคิดตาม ${d} วันที่เลือก</p>`:!d?`<p class="notice info" style="margin:0">เลือกวันจัดงานด้านบน (ประเมินไว้ ${e._fz.days} วัน)</p>`:""}
+      ${feasPanel(e,c)}
+    </div>`}
   if(inlineFc()){
     if(!e.feas||!e.feas.lines)e.feas={salesPerDay:e.feas?.salesPerDay??"",foodPct:"",lines:{}};
     const fe=e.feas,L=fe.lines||{};
@@ -1023,7 +1043,7 @@ function readForm(){
   if($("#fl-personnel")){const L={};TSC_LINES.forEach(([k])=>{const v=$("#fl-"+k).value.trim();L[k]=v===""?"":n(v)});const fp=$("#fl-foodPct").value.trim();
     e.feas={salesPerDay:$("#f-fs-sales").value,foodPct:fp===""?"":n(fp)/100,lines:L,rent:L.rent,staff:0,stay:false}}
   else if($("#f-fs-sales"))e.feas={salesPerDay:$("#f-fs-sales").value,rent:$("#f-fs-rent").value,staff:$("#f-fs-staff").value,stay:$("#f-fs-stay").checked};
-  e.vatIncluded=$("#f-vat").checked;e.note=$("#f-note").value;
+  if($("#f-vat"))e.vatIncluded=$("#f-vat").checked;e.note=$("#f-note").value;
   e.packages=e.packages.map((p,i)=>({...p,name:$("#f-pk-name-"+i).value.trim(),price:$("#f-pk-price-"+i).value,qty:$("#f-pk-qty-"+i).value}));
 }
 
@@ -1654,7 +1674,7 @@ function bind(){
   const base="b/"+S.brand;
   on("[data-filter]","click",ev=>{S.filter=ev.currentTarget.dataset.filter;render()});
   if(S.view==="feas"){
-    const upd=()=>{const z=readFz();$("#fzOut").innerHTML=feasPanel(fzEvent(z),calcFeas(fzEvent(z)))};
+    const upd=()=>{const z=readFz();$("#fzOut").innerHTML=fzOut(z,calcFeas(fzEvent(z)))};
     on("#fzForm input","input",upd);on("#fzForm input[type=checkbox]","change",upd);
     if($("#fzReset"))$("#fzReset").onclick=()=>{delete S.fz[S.brand];render()};
     if($("#fzPdf"))$("#fzPdf").onclick=ev=>{const z=readFz(),c=calcFeas(fzEvent(z));htmlToPdf(fzPdfHtml(z,c),fzFile(z,"pdf"),ev.currentTarget,"Export PDF",false)};
