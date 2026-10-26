@@ -50,7 +50,7 @@
       <img class="logo" src="assets/fab-logo.png" alt="FAB">
       <h1>FAB Booth &amp; Catering</h1>
       <p class="sub">${signup ? "สมัครใช้งาน · รอผู้ดูแลกำหนดแบรนด์และสิทธิ์ให้" : reset ? "ลืมรหัสผ่าน · ระบบจะส่งลิงก์ตั้งรหัสใหม่ทางอีเมล" : "ระบบงานบูธและแคเทอริ่ง"}</p>
-      ${signup ? '<label>ชื่อ-นามสกุล<input id="bcName" autocomplete="name" required></label><label>แผนก<select id="bcDept" required><option value="">เลือกแผนก…</option><option value="marketing">การตลาด</option><option value="operations">โอเปอเรชั่น</option><option value="clevel">C-level</option></select></label>' : ""}
+      ${signup ? '<label>ชื่อ-นามสกุล<input id="bcName" autocomplete="name" required></label><label>แผนก<select id="bcDept" required><option value="">เลือกแผนก…</option><option value="marketing">การตลาด</option><option value="operations">โอเปอเรชั่น</option><option value="clevel">C-level</option></select></label><label id="bcBrandWrap">แบรนด์<select id="bcBrand"><option value="">เลือกแบรนด์…</option><option value="jaedang">เจ๊แดง</option><option value="tsc">Top Secret Café</option><option value="both">ทั้งสองแบรนด์</option></select></label>' : ""}
       <label>อีเมล<input id="bcEmail" type="email" autocomplete="email" required></label>
       ${reset ? "" : `<label>รหัสผ่าน<input id="bcPass" type="password" autocomplete="${signup ? "new-password" : "current-password"}" minlength="6" required></label>`}
       ${msg ? `<p class="${ok ? "ok" : "err"}">${msg}</p>` : ""}
@@ -60,6 +60,8 @@
           : '<button class="link" type="button" data-m="signup">สมัครใช้งาน</button><button class="link" type="button" data-m="reset">ลืมรหัสผ่าน</button>'}
       </div><div class="foot">© 2026 Operation FAB</div></form>`;
     el.hidden = false;
+    const dsel = el.querySelector("#bcDept"), bw = el.querySelector("#bcBrandWrap");
+    if (dsel && bw) { const f = () => (bw.hidden = dsel.value === "clevel"); dsel.onchange = f; f(); }
     el.querySelectorAll("[data-m]").forEach(b => (b.onclick = () => showLogin(b.dataset.m)));
     el.querySelector("form").onsubmit = async ev => {
       ev.preventDefault();
@@ -69,7 +71,9 @@
         if (signup) {
           const name = el.querySelector("#bcName").value.trim(), department = el.querySelector("#bcDept").value;
           if (!department) { btn.disabled = false; return showLogin("signup", "กรุณาเลือกแผนก"); }
-          const { data, error } = await sb.auth.signUp({ email, password: pass, options: { data: { full_name: name, department }, emailRedirectTo: location.href.split("#")[0] } });
+          const brand = department === "clevel" ? "both" : el.querySelector("#bcBrand").value;
+          if (!brand) { btn.disabled = false; return showLogin("signup", "กรุณาเลือกแบรนด์"); }
+          const { data, error } = await sb.auth.signUp({ email, password: pass, options: { data: { full_name: name, department, brand }, emailRedirectTo: location.href.split("#")[0] } });
           if (error) throw error;
           if (!data.session) return showLogin("login", "สมัครแล้ว เปิดอีเมลเพื่อยืนยัน แล้วกลับมาเข้าสู่ระบบ", true);
         } else if (reset) {
