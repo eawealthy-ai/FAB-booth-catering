@@ -370,6 +370,7 @@ tr.total td{background:var(--brand-soft)}
       <button class="tab" data-view="home" type="button">หน้าแรก</button>
       <button class="tab" data-view="overall" id="tabOverall" type="button" hidden>ภาพรวม 2 แบรนด์</button>
       <button class="tab" data-view="dash" type="button">Dashboard</button>
+      <button class="tab" data-view="feas" type="button">Run Feasibility</button>
       <button class="tab" data-view="events" type="button">งานทั้งหมด</button>
       <button class="tab" data-view="new" id="tabNew" type="button">+ Add new event</button>
       <button class="tab" data-view="menus" id="tabMenus" type="button" hidden>เมนู &amp; BOM</button>
@@ -595,6 +596,7 @@ function rerender(){
   if(S.view==="new"&&$("#evForm"))readForm();
   else if(S.view==="menus"&&$("#m-name"))readMenu();
   else if(S.view==="event"){if($("#pl-fee"))readPL();readUp();readPay()}
+  else if(S.view==="feas"&&$("#fzForm")){readFz();if(document.activeElement&&document.activeElement.closest("#fzForm"))return}
   render();
 }
 function subscribe(){
@@ -694,6 +696,7 @@ function render(){
   if(S.view==="home")m.innerHTML=viewHome();
   else if(S.view==="events")m.innerHTML=viewEvents();
   else if(S.view==="dash")m.innerHTML=viewDash();
+  else if(S.view==="feas")m.innerHTML=viewFeas();
   else if(S.view==="overall")m.innerHTML=viewOverall();
   else if(S.view==="notif")m.innerHTML=viewNotif();
   else if(S.view==="new")m.innerHTML=viewForm();
@@ -751,6 +754,7 @@ const IC={
   pdf:'<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 11v6M9.5 14.5 12 17l2.5-2.5"/>',
   swap:'<path d="M4 8h14l-3.5-3.5"/><path d="M20 16H6l3.5 3.5"/>',
   power:'<path d="M12 3v8"/><path d="M6.4 6.6a8 8 0 1 0 11.2 0"/>',
+  feas:'<path d="M4 20h16"/><path d="M5 16l4-4 3 3 7-7"/><path d="M15 8h4v4"/>',
   more:'<circle cx="6" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18" cy="12" r="1.3"/>'
 };
 const ico=(k,sz=26)=>`<svg viewBox="0 0 24 24" width="${sz}" height="${sz}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg>`;
@@ -763,7 +767,7 @@ function homeItems(){
   it.push(["events","list","งานทั้งหมด"],["cal","cal","ปฏิทินงาน"]);
   if(S.isAdmin)it.push(["new","plus","Add new event"]);
   if(S.canSales)it.push(["sales","pos","กรอกยอดขาย"]);
-  it.push(["dash","chart","Dashboard"]);
+  it.push(["dash","chart","Dashboard"],["feas","feas","Run Feasibility"]);
   if(S.isOwner||role==="management")it.push(["overall","pie","ภาพรวม 2 แบรนด์"]);
   it.push(["notif","bell","แจ้งเตือน"]);
   if(S.downloads)it.push(["pdf","pdf","Export PDF สรุปงาน"]);
@@ -796,6 +800,87 @@ function bottomNav(u){
   const v=S.view==="event"?"events":S.view;
   const b=(k,ic,l)=>`<button class="bn${v===k||(k==="events"&&v==="events")?" on":""}" data-home="${k}" type="button">${ico(ic,22)}<span>${l}</span>${k==="notif"&&u?`<span class="nbadge">${u>99?"99+":u}</span>`:""}</button>`;
   return b("home","home","หน้าแรก")+b("events","list","งานทั้งหมด")+`<button class="bn-c" data-home="${c[0]}" type="button" aria-label="${c[2]}"><span>${ico(c[1],28)}</span><em>${c[2]}</em></button>`+b("dash","chart","Dashboard")+b("notif","bell","แจ้งเตือน");
+}
+
+/* standalone feasibility calculator */
+function fzState(){S.fz=S.fz||{};return S.fz[S.brand]||(S.fz[S.brand]={name:"",days:3,salesPerDay:"",vatIn:true,rent:"",staff:2,stay:false,foodPct:"",lines:{}})}
+function fzEvent(z){return {customer:z.name||"Run Feasibility",format:"Booth",vatIncluded:!!z.vatIn,dates:Array.from({length:Math.max(1,Math.min(60,Math.round(n(z.days))||1))},(_,i)=>"d"+String(i).padStart(2,"0")),
+  feas:inlineFc()?{salesPerDay:n(z.salesPerDay),foodPct:n(z.foodPct)/100,lines:Object.fromEntries(TSC_LINES.map(([k])=>[k,n(z.lines[k])])),rent:n(z.lines.rent),staff:0,stay:false}
+    :{salesPerDay:n(z.salesPerDay),rent:n(z.rent),staff:n(z.staff),stay:!!z.stay}}}
+function viewFeas(){
+  const z=fzState(),e=fzEvent(z),c=calcFeas(e),tsc=inlineFc();
+  const inp=(id,l,v,ph="",st="")=>`<label>${l}<input id="${id}" type="number" min="0" step="any" inputmode="decimal" value="${esc(v)}" placeholder="${ph}" ${st}></label>`;
+  return `<div class="row" style="justify-content:space-between"><div><div class="sectionlabel">ประเมินก่อนรับงาน · ยังไม่ต้องสร้างงาน</div><h1>Run Feasibility</h1></div>
+    <div class="row">${S.downloads?`<button class="btn sec" id="fzPdf" type="button">Export PDF</button><button class="btn" id="fzXlsx" type="button">Export Excel</button>`:""}<button class="btn sec" id="fzReset" type="button">ล้างค่า</button></div></div>
+  <section class="panel" id="fzForm" style="display:flex;flex-direction:column;gap:12px">
+    <label>ชื่องาน / สถานที่ (ไม่บังคับ)<input id="fz-name" value="${esc(z.name)}" placeholder="เช่น เซ็นทรัลลาดพร้าว"></label>
+    <div class="grid">
+      ${inp("fz-days","จำนวนวัน",z.days,"1")}
+      ${inp("fz-sales","Target sales ต่อวัน (บาท)",z.salesPerDay,"เช่น 15000")}
+      ${tsc?inp("fz-food","Food cost (% ของยอดขาย)",z.foodPct,"เช่น 29.5"):`${inp("fz-rent","ค่าเช่าบูธ ทั้งงาน (บาท)",z.rent,"0")}${inp("fz-staff","จำนวนพนักงาน (คน)",z.staff,"2")}`}
+    </div>
+    ${tsc?`<div class="sectionlabel">ต้นทุนทั้งงาน (บาท)</div><div class="grid">${TSC_LINES.map(([k,l])=>inp("fz-l-"+k,esc(l),z.lines[k]??"","0")).join("")}</div>`
+      :`<label style="display:flex;flex-direction:row;align-items:center;justify-content:flex-start;gap:8px;font-weight:500"><input id="fz-stay" type="checkbox" ${z.stay?"checked":""} style="width:auto"> พักค้างคืน (คิดค่าที่พัก)</label>`}
+    <label style="display:flex;flex-direction:row;align-items:center;justify-content:flex-start;gap:8px;font-weight:500"><input id="fz-vat" type="checkbox" ${z.vatIn?"checked":""} style="width:auto"> Target sales รวม VAT 7% แล้ว</label>
+    ${tsc?"":`<p class="muted" style="margin:0;font-size:.82rem">ค่าแรง OT เบี้ยเลี้ยง ที่พัก ค่าขนส่ง และ Food cost ${fmt(n(fcNow().foodPct)*100,1)}% ใช้ Fixed cost Booth ของแบรนด์ ${esc(BRANDS[S.brand].name)}</p>`}
+  </section>
+  <div id="fzOut">${feasPanel(e,c)}</div>`;
+}
+function readFz(){
+  const z=fzState(),v=id=>{const el=$("#"+id);return el?el.value:undefined};
+  z.name=v("fz-name")??z.name;z.days=v("fz-days")??z.days;z.salesPerDay=v("fz-sales")??z.salesPerDay;z.vatIn=$("#fz-vat")?$("#fz-vat").checked:z.vatIn;
+  if(inlineFc()){z.foodPct=v("fz-food")??z.foodPct;TSC_LINES.forEach(([k])=>{const x=v("fz-l-"+k);if(x!==undefined)z.lines[k]=x})}
+  else{z.rent=v("fz-rent")??z.rent;z.staff=v("fz-staff")??z.staff;z.stay=$("#fz-stay")?$("#fz-stay").checked:z.stay}
+  return z;
+}
+function fzRows(c){
+  if(c.lines)return [["Sales (Target"+(c.vatIn?" inc. VAT":"")+")",c.gross,"h"],...(c.vatIn?[["หัก VAT 7%",-c.vat]]:[]),["ยอดขายก่อน VAT",c.net,"k"],["Food cost "+fmt(c.foodPct*100,2)+"%",-c.food],
+    ...c.items.map(x=>[x.l,-x.v,"s"]),["Total Cost",-(c.food+c.fixed),"k"],["Profit & Loss",c.np,"f"]];
+  return [["Target sales"+(c.vatIn?" (รวม VAT)":""),c.gross,"h"],...(c.vatIn?[["หัก VAT 7%",-c.vat]]:[]),["ยอดขายสุทธิ",c.net,"k"],["ต้นทุนอาหาร "+fmt(n(c.f.foodPct)*100,1)+"%",-c.food],["กำไรขั้นต้น",c.gp,"k"],
+    ["ค่าแรง ("+c.staff+" คน × "+fmt(c.f.wage)+" × "+c.days+" วัน)",-c.labor,"s"],["OT",-c.ot,"s"],["เบี้ยเลี้ยง",-c.allow,"s"],["ค่าที่พัก"+(c.rooms?` (${c.rooms} ห้อง × ${c.days} คืน)`:""),-c.hotel,"s"],
+    ["ค่าเช่าบูธ",-c.rent,"s"],["ค่ารถขนส่ง",-c.transport,"s"],["ค่าอื่น ๆ",-c.other,"s"],["ค่าใช้จ่ายรวม",-c.fixed,"k"],["กำไรสุทธิ",c.np,"f"]];
+}
+function fzFile(z,ext){return "Feasibility_"+(safeName(z.name)||BRANDS[S.brand].name)+"_"+today()+"."+ext}
+function fzPdfHtml(z,c){
+  const now=new Date();
+  return `<div style="background:var(--brand);color:var(--brand-ink);padding:20px 32px;display:flex;justify-content:space-between;align-items:flex-end">
+    <div><div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;opacity:.85">Booth &amp; Catering · ${esc(BRANDS[S.brand].name)}</div>
+    <div style="font-family:var(--f-display);font-size:22px;font-weight:700">Feasibility · ${esc(z.name||"ประเมินงานบูธ")}</div></div>
+    <div style="font-size:11px;opacity:.85">พิมพ์ ${now.getDate()} ${TH_M[now.getMonth()]} ${now.getFullYear()+543-2500}</div></div>
+  <div style="padding:24px 32px;display:flex;flex-direction:column;gap:14px">
+    <div style="font-size:13px;color:var(--muted)">${c.days} วัน · Target ฿${fmt(n(z.salesPerDay))}/วัน${c.vatIn?" (รวม VAT)":""}${inlineFc()?` · Food cost ${fmt(n(z.foodPct),2)}%`:` · พนักงาน ${fmt(z.staff)} คน${z.stay?" · พักค้างคืน":""} · ค่าเช่าบูธ ฿${fmt(n(z.rent))}`}</div>
+    ${feasPanel(fzEvent(z),c)}</div>`;
+}
+async function fzExcel(z,c,btn){
+  btn.disabled=true;const lab=btn.textContent;btn.textContent="กำลังสร้าง Excel…";
+  try{
+    if(!window.ExcelJS)await loadScript("https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js");
+    const TH={jaedang:{bg:"FFC8102E",fg:"FFFFFFFF"},tsc:{bg:"FF141414",fg:"FFD4AF5A"}}[S.brand]||{bg:"FFEE8838",fg:"FFFFFFFF"};
+    const wb=new ExcelJS.Workbook(),ws=wb.addWorksheet("Feasibility",{views:[{showGridLines:false}]});
+    ws.columns=[{width:46},{width:18},{width:14}];
+    const title=ws.addRow(["Feasibility · "+BRANDS[S.brand].name+(z.name?" · "+z.name:"")]);title.font={bold:true,size:14,color:{argb:TH.fg}};
+    ws.mergeCells(title.number,1,title.number,3);title.getCell(1).fill={type:"pattern",pattern:"solid",fgColor:{argb:TH.bg}};title.height=24;
+    ws.addRow(["วันที่พิมพ์",dLabel(today())]);
+    ws.addRow(["จำนวนวัน",c.days]);ws.addRow(["Target sales ต่อวัน"+(c.vatIn?" (รวม VAT)":""),n(z.salesPerDay)]).getCell(2).numFmt="#,##0.00";
+    if(inlineFc())ws.addRow(["Food cost %",n(z.foodPct)/100]).getCell(2).numFmt="0.00%";
+    else{ws.addRow(["จำนวนพนักงาน (คน)",n(z.staff)]);ws.addRow(["พักค้างคืน",z.stay?"ใช่":"ไม่"]);}
+    ws.addRow([]);
+    const h=ws.addRow(["รายการ","จำนวนเงิน (บาท)","% ของยอดขายก่อน VAT"]);
+    h.eachCell(cl=>{cl.font={bold:true,color:{argb:TH.fg}};cl.fill={type:"pattern",pattern:"solid",fgColor:{argb:TH.bg}};cl.alignment={horizontal:"center",vertical:"middle"}});
+    fzRows(c).forEach(([l,v,t])=>{const r=ws.addRow([l,Math.round(v*100)/100,c.net?v/c.net:null]);
+      r.getCell(2).numFmt="#,##0.00;[Red](#,##0.00)";r.getCell(3).numFmt="0.00%;[Red]-0.00%";
+      if(t==="s")r.getCell(1).alignment={indent:2};
+      if(t==="k"||t==="h"||t==="f")r.font={bold:true};
+      if(t==="f")r.eachCell(cl=>{cl.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FFFFF1E5"}};cl.border={top:{style:"medium"}}});
+      r.eachCell(cl=>{cl.border={...(cl.border||{}),bottom:{style:"hair",color:{argb:"FFDDDDDD"}}}})});
+    ws.addRow([]);
+    ws.addRow(["จุดคุ้มทุนต่อวัน"+(c.vatIn?" (รวม VAT)":""),Math.round(c.beDay*100)/100]).getCell(2).numFmt="#,##0.00";
+    ws.addRow(["ยอดขายขั้นต่ำทั้งงาน",Math.round(c.beGross*100)/100]).getCell(2).numFmt="#,##0.00";
+    ws.addRow(["ผล",c.np>0?"ผ่าน · มีกำไร":"ไม่ผ่าน · ขาดทุน"]).font={bold:true,color:{argb:c.np>0?"FF1F7A4D":"FFB42318"}};
+    const buf=await wb.xlsx.writeBuffer();
+    await S.downloads.save({filename:fzFile(z,"xlsx"),data:new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"})});toast("บันทึก Excel แล้ว");
+  }catch(x){if(x?.code!=="declined")toast("สร้าง Excel ไม่สำเร็จ ลองใหม่อีกครั้ง")}
+  finally{btn.disabled=false;btn.textContent=lab}
 }
 
 /* event calendar */
@@ -1568,6 +1653,13 @@ function on(sel,evn,fn){document.querySelectorAll(sel).forEach(el=>el.addEventLi
 function bind(){
   const base="b/"+S.brand;
   on("[data-filter]","click",ev=>{S.filter=ev.currentTarget.dataset.filter;render()});
+  if(S.view==="feas"){
+    const upd=()=>{const z=readFz();$("#fzOut").innerHTML=feasPanel(fzEvent(z),calcFeas(fzEvent(z)))};
+    on("#fzForm input","input",upd);on("#fzForm input[type=checkbox]","change",upd);
+    if($("#fzReset"))$("#fzReset").onclick=()=>{delete S.fz[S.brand];render()};
+    if($("#fzPdf"))$("#fzPdf").onclick=ev=>{const z=readFz(),c=calcFeas(fzEvent(z));htmlToPdf(fzPdfHtml(z,c),fzFile(z,"pdf"),ev.currentTarget,"Export PDF",false)};
+    if($("#fzXlsx"))$("#fzXlsx").onclick=ev=>{const z=readFz();fzExcel(z,calcFeas(fzEvent(z)),ev.currentTarget)};
+  }
   on("[data-calm]","click",ev=>{S.calMonth=ymShift(S.calMonth,+ev.currentTarget.dataset.calm);S.calDay=null;render()});
   on("[data-caltoday]","click",()=>{S.calMonth=today().slice(0,7);S.calDay=null;render()});
   on("[data-calday]","click",ev=>{const d=ev.currentTarget.dataset.calday;S.calDay=S.calDay===d?null:d;render()});
