@@ -820,7 +820,7 @@ function viewFeas(){
       ${inp("fz-sales","Target sales ต่อวัน (บาท)",z.salesPerDay,"เช่น 15000")}
       ${tsc?inp("fz-food","Food cost (% ของยอดขาย)",z.foodPct,"เช่น 29.5"):`${inp("fz-rent","ค่าเช่าบูธ ทั้งงาน (บาท)",z.rent,"0")}${inp("fz-staff","จำนวนพนักงาน (คน)",z.staff,"เช่น 2")}`}
     </div>
-    ${tsc?`<div class="sectionlabel">ต้นทุนทั้งงาน (บาท)</div><div class="grid">${TSC_LINES.map(([k,l])=>inp("fz-l-"+k,esc(l),z.lines[k]??"","0")).join("")}</div>`
+    ${tsc?`<div class="sectionlabel">ต้นทุนทั้งงาน (บาท)</div><div class="grid">${TSC_LINES.map(([k,l])=>inp("fz-l-"+k,esc(l),z.lines[k]??"","")).join("")}</div>`
       :`<label style="display:flex;flex-direction:row;align-items:center;justify-content:flex-start;gap:8px;font-weight:500"><input id="fz-stay" type="checkbox" ${z.stay?"checked":""} style="width:auto"> พักค้างคืน (คิดค่าที่พัก)</label>`}
     <label style="display:flex;flex-direction:row;align-items:center;justify-content:flex-start;gap:8px;font-weight:500"><input id="fz-vat" type="checkbox" ${z.vatIn?"checked":""} style="width:auto"> Target sales รวม VAT 7% แล้ว</label>
     ${tsc?"":`<p class="muted" style="margin:0;font-size:.82rem">ค่าแรง OT เบี้ยเลี้ยง ที่พัก ค่าขนส่ง และ Food cost ${fmt(n(fcNow().foodPct)*100,1)}% ใช้ Fixed cost Booth ของแบรนด์ ${esc(BRANDS[S.brand].name)}</p>`}
