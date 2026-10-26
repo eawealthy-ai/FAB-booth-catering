@@ -766,7 +766,7 @@ function goSales(){const tb=todayBooths();
 function homeItems(){
   const role=myRole(),it=[];
   it.push(["events","list","งานทั้งหมด"],["cal","cal","ปฏิทินงาน"]);
-  if(S.isAdmin)it.push(["new","plus","Add new event"]);
+  if(S.isAdmin)it.push(["feas","feas","Run Feasibility"],["new","plus","Add new event"]);
   if(S.canSales)it.push(["sales","pos","กรอกยอดขาย"]);
   it.push(["dash","chart","Dashboard"]);
   if(S.isOwner||role==="management")it.push(["overall","pie","ภาพรวม 2 แบรนด์"]);
