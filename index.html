@@ -812,7 +812,7 @@ function viewFeas(){
   const z=fzState(),e=fzEvent(z),c=calcFeas(e),tsc=inlineFc();
   const inp=(id,l,v,ph="",st="")=>`<label>${l}<input id="${id}" type="number" min="0" step="any" inputmode="decimal" value="${esc(v)}" placeholder="${ph}" ${st}></label>`;
   return `<div class="row" style="justify-content:space-between"><div><div class="sectionlabel">ประเมินก่อนรับงาน · ยังไม่ต้องสร้างงาน</div><h1>Run Feasibility</h1></div>
-    <div class="row"><button class="btn sec" data-view="new" type="button">← Add new event</button>${S.downloads?`<button class="btn sec" id="fzPdf" type="button">Export PDF</button><button class="btn" id="fzXlsx" type="button">Export Excel</button>`:""}<button class="btn sec" id="fzReset" type="button">ล้างค่า</button></div></div>
+    <div class="row"><button class="btn sec" data-view="new" type="button">← Add new event</button>${S.downloads?`<button class="btn sec" id="fzPdf" type="button">Export PDF</button><button class="btn sec" id="fzJpg" type="button">Export JPEG</button><button class="btn" id="fzXlsx" type="button">Export Excel</button>`:""}<button class="btn sec" id="fzReset" type="button">ล้างค่า</button></div></div>
   <section class="panel" id="fzForm" style="display:flex;flex-direction:column;gap:12px">
     <label>ชื่องาน / สถานที่ (ไม่บังคับ)<input id="fz-name" value="${esc(z.name)}" placeholder="เช่น เซ็นทรัลลาดพร้าว"></label>
     <div class="grid">
@@ -1240,6 +1240,20 @@ async function htmlToPdf(html,filename,btn,label,landscape){
     }
     await S.downloads.save({filename,data:pdf.output("blob")});toast("บันทึก PDF แล้ว");
   }catch(x){if(x?.code!=="declined")toast(x?.code==="unavailable"?"หน้านี้บันทึกไฟล์ไม่ได้":"สร้าง PDF ไม่สำเร็จ ลองใหม่อีกครั้ง")}
+  finally{btn.disabled=false;btn.textContent=label}
+}
+async function htmlToJpg(html,filename,btn,label){
+  btn.disabled=true;btn.textContent="กำลังสร้างรูป…";
+  try{
+    await loadScript("https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js");
+    const host=document.createElement("div");
+    host.style.cssText="position:absolute;left:-10000px;top:0;width:794px;background:#ffffff;color:#1b1a19;font-family:var(--f-body);font-size:13px;line-height:1.5;"+PDF_BASE+(PDF_VARS[S.brand]||"");
+    host.innerHTML=html;document.body.appendChild(host);
+    try{await document.fonts.ready}catch(_){}
+    const canvas=await window.html2canvas(host,{scale:2,backgroundColor:"#ffffff"});host.remove();
+    const blob=await new Promise(r=>canvas.toBlob(r,"image/jpeg",0.92));
+    await S.downloads.save({filename,data:blob});toast("บันทึกรูป JPEG แล้ว");
+  }catch(x){if(x?.code!=="declined")toast(x?.code==="unavailable"?"หน้านี้บันทึกไฟล์ไม่ได้":"สร้างรูปไม่สำเร็จ ลองใหม่อีกครั้ง")}
   finally{btn.disabled=false;btn.textContent=label}
 }
 const safeName=v=>String(v||"").replace(/[\\/:*?"<>|\[\]]/g,"").trim();
@@ -1678,6 +1692,7 @@ function bind(){
     on("#fzForm input","input",upd);on("#fzForm input[type=checkbox]","change",upd);
     if($("#fzReset"))$("#fzReset").onclick=()=>{delete S.fz[S.brand];render()};
     if($("#fzPdf"))$("#fzPdf").onclick=ev=>{const z=readFz(),c=calcFeas(fzEvent(z));htmlToPdf(fzPdfHtml(z,c),fzFile(z,"pdf"),ev.currentTarget,"Export PDF",false)};
+    if($("#fzJpg"))$("#fzJpg").onclick=ev=>{const z=readFz(),c=calcFeas(fzEvent(z));htmlToJpg(fzPdfHtml(z,c),fzFile(z,"jpg"),ev.currentTarget,"Export JPEG")};
     if($("#fzXlsx"))$("#fzXlsx").onclick=ev=>{const z=readFz();fzExcel(z,calcFeas(fzEvent(z)),ev.currentTarget)};
   }
   on("[data-calm]","click",ev=>{S.calMonth=ymShift(S.calMonth,+ev.currentTarget.dataset.calm);S.calDay=null;render()});
