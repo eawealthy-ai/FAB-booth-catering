@@ -804,7 +804,7 @@ function bottomNav(u){
 }
 
 /* standalone feasibility calculator */
-function fzState(){S.fz=S.fz||{};return S.fz[S.brand]||(S.fz[S.brand]={name:"",days:3,salesPerDay:"",vatIn:true,rent:"",staff:2,stay:false,foodPct:"",lines:{}})}
+function fzState(){S.fz=S.fz||{};return S.fz[S.brand]||(S.fz[S.brand]={name:"",days:"",salesPerDay:"",vatIn:true,rent:"",staff:"",stay:false,foodPct:"",lines:{}})}
 function fzEvent(z){return {customer:z.name||"Run Feasibility",format:"Booth",vatIncluded:!!z.vatIn,dates:Array.from({length:Math.max(1,Math.min(60,Math.round(n(z.days))||1))},(_,i)=>"d"+String(i).padStart(2,"0")),
   feas:inlineFc()?{salesPerDay:n(z.salesPerDay),foodPct:n(z.foodPct)/100,lines:Object.fromEntries(TSC_LINES.map(([k])=>[k,n(z.lines[k])])),rent:n(z.lines.rent),staff:0,stay:false}
     :{salesPerDay:n(z.salesPerDay),rent:n(z.rent),staff:n(z.staff),stay:!!z.stay}}}
@@ -816,9 +816,9 @@ function viewFeas(){
   <section class="panel" id="fzForm" style="display:flex;flex-direction:column;gap:12px">
     <label>ชื่องาน / สถานที่ (ไม่บังคับ)<input id="fz-name" value="${esc(z.name)}" placeholder="เช่น เซ็นทรัลลาดพร้าว"></label>
     <div class="grid">
-      ${inp("fz-days","จำนวนวัน",z.days,"1")}
+      ${inp("fz-days","จำนวนวัน",z.days,"เช่น 3")}
       ${inp("fz-sales","Target sales ต่อวัน (บาท)",z.salesPerDay,"เช่น 15000")}
-      ${tsc?inp("fz-food","Food cost (% ของยอดขาย)",z.foodPct,"เช่น 29.5"):`${inp("fz-rent","ค่าเช่าบูธ ทั้งงาน (บาท)",z.rent,"0")}${inp("fz-staff","จำนวนพนักงาน (คน)",z.staff,"2")}`}
+      ${tsc?inp("fz-food","Food cost (% ของยอดขาย)",z.foodPct,"เช่น 29.5"):`${inp("fz-rent","ค่าเช่าบูธ ทั้งงาน (บาท)",z.rent,"0")}${inp("fz-staff","จำนวนพนักงาน (คน)",z.staff,"เช่น 2")}`}
     </div>
     ${tsc?`<div class="sectionlabel">ต้นทุนทั้งงาน (บาท)</div><div class="grid">${TSC_LINES.map(([k,l])=>inp("fz-l-"+k,esc(l),z.lines[k]??"","0")).join("")}</div>`
       :`<label style="display:flex;flex-direction:row;align-items:center;justify-content:flex-start;gap:8px;font-weight:500"><input id="fz-stay" type="checkbox" ${z.stay?"checked":""} style="width:auto"> พักค้างคืน (คิดค่าที่พัก)</label>`}
