@@ -534,9 +534,10 @@ function defaultPL(e){
 /* Catering: sales fixed by the confirmation, split across event days (remainder on the last day) */
 function cateringDay(e,d){
   const ds=sortedDates(e),days=ds.length||1,last=ds[ds.length-1]===d;
-  if(d==="event")return {sales:(e.packages||[]).map(p=>({menuId:p.menuId||"",name:p.name,price:n(p.price),qty:n(p.qty)})),cateringFee:n(e.cateringFeePerDay)*days};
+  const uc=p=>p.unitCogs!==undefined&&p.unitCogs!==null&&p.unitCogs!==""?{unitCogs:n(p.unitCogs)}:{};
+  if(d==="event")return {sales:(e.packages||[]).map(p=>({menuId:p.menuId||"",name:p.name,price:n(p.price),qty:n(p.qty),...uc(p)})),cateringFee:n(e.cateringFeePerDay)*days};
   return {sales:(e.packages||[]).map(p=>{const base=Math.floor(n(p.qty)/days);
-    return {menuId:p.menuId||"",name:p.name,price:n(p.price),qty:last?n(p.qty)-base*(days-1):base}}),cateringFee:n(e.cateringFeePerDay)};
+    return {menuId:p.menuId||"",name:p.name,price:n(p.price),qty:last?n(p.qty)-base*(days-1):base,...uc(p)}}),cateringFee:n(e.cateringFeePerDay)};
 }
 const fmt0=v=>String(n(v));
 function boothMenus(){
