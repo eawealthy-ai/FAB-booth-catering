@@ -1130,6 +1130,7 @@ function viewEvent(){
   </section>`:""}
   ${tab==="pl"?plCards(e,rows,sum):""}
   ${tab==="pl"&&rows.some(r=>r.c)?budgetVsActual(e,rows,sum):""}
+  ${tab==="pl"&&isBooth(e)?mixPanel(e,rows,false):""}
   ${tab==="pl"&&rows.some(r=>r.c)?`<section style="display:flex;flex-direction:column;gap:10px"><h2>กำไรขาดทุนรายวัน</h2>
     <div class="tbl-wrap"><table><thead><tr><th>วันที่</th><th class="r">ยอดขาย (inc. VAT)</th><th class="r">COGS</th><th class="r">GP</th><th class="r">ค่าใช้จ่ายอื่น</th><th class="r">กำไรสุทธิ</th><th class="r">%</th></tr></thead><tbody>
     ${rows.map(r=>`<tr><td>${dLabel(r.d)}</td>${r.c?["gross","cogs","gp","other"].map(k=>`<td class="r num">${fmt(r.c[k])}</td>`).join("")+`<td class="r num ${r.c.np<0?"neg":"pos"}">${fmt(r.c.np)}</td><td class="r num">${pct(r.c.np,r.c.net)}</td>`:`<td colspan="6" class="muted">ยังไม่กรอก</td>`}</tr>`).join("")}
@@ -1169,6 +1170,35 @@ function plCards(e,rows,sum){
 /* PDF export: render an A4 sheet off-screen, rasterize, page it into a PDF */
 const PDF_VARS={jaedang:"--brand:#c8102e;--brand-ink:#ffffff;--brand-soft:#fbe7ea;--brand-2:#c8102e;",tsc:"--brand:#141414;--brand-ink:#d4af5a;--brand-soft:#f5efe0;--brand-2:#b08a35;"};
 const PDF_BASE="--bg:#ffffff;--surface:#ffffff;--ink:#1b1a19;--muted:#5f5a54;--line:#e4e0da;--soft:#f3f1ee;--good:#1f7a4d;--good-soft:#e3f3ea;--warn:#a15c00;--warn-soft:#fff1dc;--bad:#b42318;--bad-soft:#fde8e6;color-scheme:light;";
+/* best-selling menu mix (pie) */
+const MIX_COL=["#ee8838","#4a63d8","#a35a9a","#2f9e6b","#e5484d","#d4af5a","#3aa0c8","#7a5af0"];
+function menuMix(e,rows){
+  const menu={};rows.filter(r=>r.pl).forEach(r=>(effPL(e,r.d,r.pl).sales||[]).forEach(x=>{if(!n(x.qty))return;const k=x.menuId||x.name;const m=menu[k]||(menu[k]={name:x.name,qty:0,amt:0});m.qty+=n(x.qty);m.amt+=n(x.qty)*n(x.price)}));
+  return Object.values(menu).sort((a,b)=>b.amt-a.amt);
+}
+function pieSvg(parts,size,center){
+  const tot=parts.reduce((a,p)=>a+p.v,0)||1,R=size/2,r=R*0.58;let a0=-Math.PI/2;
+  const pt=(rad,a)=>[R+rad*Math.cos(a),R+rad*Math.sin(a)];
+  const paths=parts.map(p=>{const f=p.v/tot;if(f>=0.9999)return `<circle cx="${R}" cy="${R}" r="${(R+r)/2}" fill="none" stroke="${p.c}" stroke-width="${R-r}"/>`;
+    const a1=a0+f*2*Math.PI,lg=f>0.5?1:0,[x0,y0]=pt(R,a0),[x1,y1]=pt(R,a1),[x2,y2]=pt(r,a1),[x3,y3]=pt(r,a0);a0=a1;
+    return `<path d="M${x0.toFixed(2)} ${y0.toFixed(2)}A${R} ${R} 0 ${lg} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}L${x2.toFixed(2)} ${y2.toFixed(2)}A${r} ${r} 0 ${lg} 0 ${x3.toFixed(2)} ${y3.toFixed(2)}Z" fill="${p.c}" stroke="#fff" stroke-width="1.5"/>`}).join("");
+  return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" role="img" aria-label="สัดส่วนยอดขายตามเมนู" style="flex:none;max-width:100%">${paths}
+    ${center?`<text x="${R}" y="${R-4}" text-anchor="middle" font-size="${size/16}" fill="#6b7285">${center[0]}</text><text x="${R}" y="${R+size/12}" text-anchor="middle" font-size="${size/10}" font-weight="700" fill="#1b1a19">${center[1]}</text>`:""}</svg>`;
+}
+function mixPanel(e,rows,forPdf){
+  const ml=menuMix(e,rows);if(!ml.length)return "";
+  const tot=ml.reduce((a,m)=>a+m.amt,0),tq=ml.reduce((a,m)=>a+m.qty,0),top=ml.slice(0,7),rest=ml.slice(7);
+  const parts=top.map((m,i)=>({l:m.name,v:m.amt,q:m.qty,c:MIX_COL[i]}));
+  if(rest.length)parts.push({l:`อื่น ๆ (${rest.length} เมนู)`,v:rest.reduce((a,m)=>a+m.amt,0),q:rest.reduce((a,m)=>a+m.qty,0),c:"#b9bdc6"});
+  const legend=parts.map((p,i)=>`<div style="display:grid;grid-template-columns:12px minmax(0,1fr) auto;gap:8px;align-items:center;padding:5px 0;border-top:${i?"1px solid var(--line)":"0"};font-size:${forPdf?"12px":".9rem"}">
+    <span style="width:12px;height:12px;border-radius:3px;background:${p.c}"></span>
+    <span style="min-width:0;overflow-wrap:anywhere">${i<7&&!(rest.length&&i===parts.length-1)?`<b style="color:var(--muted);font-weight:600">${i+1}.</b> `:""}${esc(p.l)}<span style="color:var(--muted)"> · ${fmt(p.q)} ชิ้น</span></span>
+    <span style="font-family:var(--f-num);white-space:nowrap;text-align:right">${fmt(p.v)} <b style="display:inline-block;min-width:44px">${(p.v/tot*100).toFixed(1)}%</b></span></div>`).join("");
+  return `<section class="${forPdf?"":"panel"}" style="display:flex;flex-direction:column;gap:12px">
+    <div><h2 style="margin:0;${forPdf?"font-size:15px":""}">เมนูขายดี</h2><div style="color:var(--muted);font-size:${forPdf?"11px":".85rem"}">สัดส่วนยอดขาย (inc. VAT) ตามเมนู · ${fmt(tq)} ชิ้น · ฿${fmt(tot)}</div></div>
+    <div style="display:flex;flex-wrap:wrap;gap:18px;align-items:center">${pieSvg(parts,forPdf?190:210,["ยอดขาย","฿"+fmt(tot)])}<div style="flex:1 1 260px;min-width:0">${legend}</div></div>
+  </section>`;
+}
 function plSheet(e){
   const ds=sortedDates(e),booth=isBooth(e),keys=booth?ds:["event"];
   const rows=keys.map(d=>{const pl=S.pl[d];return {d,pl,c:pl?calcPL(e,effPL(e,d,pl)):null}});
@@ -1206,6 +1236,7 @@ function plSheet(e){
     ${booth&&rows.length>1?`<div><div class="sectionlabel" style="margin-bottom:6px">รายวัน</div><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>${th("วันที่")}${th("ยอดขาย (inc. VAT)",1)}${th("Food cost",1)}${th("ค่าใช้จ่ายอื่น",1)}${th("กำไร/ขาดทุน",1)}${th("%",1)}</tr></thead><tbody>
       ${rows.map(r=>`<tr>${td(dLabel(r.d))}${r.c?td(fmt(r.c.gross),1)+td(fmt(r.c.cogs),1)+td(fmt(r.c.other),1)+td(`<span style="color:${r.c.np<0?"var(--bad)":"var(--good)"}">${fmt(r.c.np)}</span>`,1)+td(pct(r.c.np,r.c.net),1):`<td colspan="5" style="padding:6px 8px;border-top:1px solid var(--line);color:var(--muted)">ยังไม่กรอก</td>`}</tr>`).join("")}
     </tbody></table></div>`:""}
+    ${booth&&mlist.length?mixPanel(e,rows,true):""}
     ${mlist.length?`<div><div class="sectionlabel" style="margin-bottom:6px">ยอดขายตามเมนู</div><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>${th("เมนู")}${th("ราคา",1)}${th("จำนวน",1)}${th("ยอดขาย",1)}${th("COGS",1)}${th("Mix %",1)}</tr></thead><tbody>
       ${mlist.map(m=>`<tr>${td(esc(m.name))}${td(fmt(m.price),1)}${td(fmt(m.qty),1)}${td(fmt(m.amt),1)}${td(fmt(m.cogs,2),1)}${td(pct(m.amt,sum.gross-(booth?0:0)),1)}</tr>`).join("")}
       <tr>${td("รวม",0,strong)}${td("",1,strong)}${td(fmt(mlist.reduce((a,m)=>a+m.qty,0)),1,strong)}${td(fmt(mlist.reduce((a,m)=>a+m.amt,0)),1,strong)}${td(fmt(mlist.reduce((a,m)=>a+m.cogs,0),2),1,strong)}${td("100%",1,strong)}</tr>
