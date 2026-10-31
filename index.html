@@ -1126,7 +1126,7 @@ function viewEvent(){
     <p class="muted" style="margin:0;font-size:.85rem">งานขายขาด ยอดขายมาจากใบคอนเฟิร์มทั้งงาน กรอกเฉพาะค่าใช้จ่ายจริงของงาน</p>
     ${ds.length?dayPL(e,"event"):`<div class="empty">ยังไม่ได้กำหนดวันที่จัดงาน</div>`}</section>`):tab==="sales"?`<section style="display:flex;flex-direction:column;gap:12px">
     <h2>กรอกยอดขายรายวัน</h2>
-    <div class="daytabs">${rows.map(r=>`<button class="daytab" data-day="${r.d}" aria-pressed="${r.d===S.day}" type="button">${dLabel(r.d)}<small>${r.c?`กำไร ฿${fmt(r.c.np)}`:r.d<=t?"ยังไม่กรอก":"ยังไม่ถึงวันงาน"}</small></button>`).join("")}</div>
+    <div class="daytabs">${rows.map(r=>`<button class="daytab" data-day="${r.d}" aria-pressed="${r.d===S.day}" type="button">${dLabel(r.d)}<small>${r.c?(r.c.np<0?`<span class="neg">ขาดทุน ฿${fmt(-r.c.np)}</span>`:`<span class="pos">กำไร ฿${fmt(r.c.np)}</span>`):r.d<=t?"ยังไม่กรอก":"ยังไม่ถึงวันงาน"}</small></button>`).join("")}</div>
     ${S.day?dayPL(e,S.day):`<div class="empty">ยังไม่ได้กำหนดวันที่จัดงาน</div>`}
   </section>`:""}
   ${tab==="pl"?plCards(e,rows,sum):""}
