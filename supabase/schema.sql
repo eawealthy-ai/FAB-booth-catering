@@ -114,6 +114,7 @@ create table if not exists public.event_pl (
   catering_fee  numeric not null default 0,
   other_costs   jsonb not null default '[]',
   waste         jsonb not null default '[]',      -- [{menuId,name,qty,unitCogs}]
+  adjust        jsonb not null default '[]',      -- [{kind:'sales'|'cogs',label,amount}] (day 'extra')
   updated_by    text,
   updated_at    timestamptz not null default now(),
   primary key (event_id, day)

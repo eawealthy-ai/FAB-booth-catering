@@ -241,6 +241,11 @@ td input,td select{padding:5px 8px}
 .daytab{background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:6px 12px;text-align:left;font-size:.85rem}
 .daytab[aria-pressed="true"]{border-color:var(--brand-2);box-shadow:inset 0 0 0 1px var(--brand-2)}
 .daytab small{display:block;color:var(--muted);font-size:.72rem}
+.evtabs-wrap .daytabs{flex-wrap:nowrap;overflow-x:auto;padding:2px 2px 10px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.evtabs-wrap .daytabs::-webkit-scrollbar{display:none}
+.evtabs-wrap .daytab{flex:none;padding:5px 12px}
+.xrow{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1.5fr) 110px auto;gap:8px;align-items:center}
+@media (max-width:600px){.xrow{grid-template-columns:minmax(0,1fr) 100px auto;padding-bottom:8px;border-bottom:1px solid var(--line)}.xrow>select{grid-column:1/-1}}
 .pl{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:18px}
 @media (max-width:820px){.pl{grid-template-columns:1fr}}
 .stmt{display:flex;flex-direction:column}
@@ -548,17 +553,18 @@ function boothMenus(){
 }
 function effPL(e,d,pl){return d==="extra"||e.format==="Booth"?pl:{...pl,...cateringDay(e,d)}}
 function calcPL(e,pl){
-  const gross=(pl.sales||[]).reduce((a,s)=>a+n(s.price)*n(s.qty),0)+n(pl.cateringFee);
+  const adj=pl.adjust||[],adjSales=adj.filter(a=>a.kind==="sales").reduce((a,x)=>a+n(x.amount),0),adjCogs=adj.filter(a=>a.kind==="cogs").reduce((a,x)=>a+n(x.amount),0);
+  const gross=(pl.sales||[]).reduce((a,s)=>a+n(s.price)*n(s.qty),0)+n(pl.cateringFee)+adjSales;
   const vatIn=e.vatIncluded!==false;
   const net=vatIn?gross/(1+VAT):gross;
   let cogs=0,missing=[];
   (pl.sales||[]).forEach(s=>{const has=s.unitCogs!==undefined&&s.unitCogs!==null&&s.unitCogs!=="";const c=has?n(s.unitCogs):menuCost(menuFor(s));if(n(s.qty)>0&&!has&&!c)missing.push(s.name);cogs+=c*n(s.qty)});
   const cogsSales=cogs;let waste=0;
   (pl.waste||[]).forEach(w=>{const has=w.unitCogs!==undefined&&w.unitCogs!==null&&w.unitCogs!=="";const c=has?n(w.unitCogs):menuCost(menuFor(w));if(n(w.qty)>0&&!c&&!missing.includes(w.name))missing.push(w.name);waste+=c*n(w.qty)});
-  cogs+=waste;
+  cogs+=waste+adjCogs;
   const other=(pl.otherCosts||[]).reduce((a,c)=>a+n(c.amount),0);
   const gp=net-cogs,np=gp-other;
-  return {gross,vat:gross-net,net,cogs,cogsSales,waste,gp,other,np,missing};
+  return {gross,vat:gross-net,net,cogs,cogsSales,waste,adjSales,adjCogs,gp,other,np,missing};
 }
 function eventStatus(e){
   if(e.status==="cancelled")return["cx","ยกเลิก"];
@@ -1080,11 +1086,12 @@ function viewEvent(){
   const sum=rows.filter(r=>r.c).reduce((a,r)=>{for(const k of["gross","net","cogs","waste","gp","other","np"])a[k]+=n(r.c[k]);return a},{gross:0,net:0,cogs:0,waste:0,gp:0,other:0,np:0});
   const confirmDel=S.confirmDel===e.id,tab=isBooth(e)?(S.evTab||"info"):(S.evTab==="pl"?"pl":"info");
   const tabBar=true?`<div class="evtabs" role="tablist">${(isBooth(e)?[["info","รายละเอียดงาน"],["sales","กรอกยอดขาย"],["pl","สรุปกำไรขาดทุน"]]:[["info","รายละเอียดงาน"],["pl","งบกำไรขาดทุน"]]).map(([k,l])=>`<button class="evtab" role="tab" data-evtab="${k}" aria-selected="${tab===k}" type="button">${l}</button>`).join("")}</div>`:"";
+  const dayStrip=tab==="sales"&&isBooth(e)&&rows.length?`<div class="daytabs" id="dayStrip">${rows.map(r=>`<button class="daytab" data-day="${r.d}" aria-pressed="${r.d===S.day}" type="button">${dLabel(r.d)}<small>${r.c?(r.c.np<0?`<span class="neg">ขาดทุน ฿${fmt(-r.c.np)}</span>`:`<span class="pos">กำไร ฿${fmt(r.c.np)}</span>`):r.d<=t?"ยังไม่กรอก":"ยังไม่ถึงวันงาน"}</small></button>`).join("")}</div>`:"";
   const compactHead=`<div><div class="row" style="gap:8px"><span class="pill ${cls}">${lab}</span><span class="muted">${esc(e.format)} · ${datesText(ds)}</span></div>
     <h1 style="margin-top:4px">${esc(e.customer)}</h1><div class="muted">${esc(e.venue)}</div></div>`;
   return `${true?`<div class="evtabs-wrap"><div class="row" style="gap:10px;flex-wrap:nowrap">
       <button class="btn sec small" data-view="events" type="button" style="flex:none">← งานทั้งหมด</button>
-      <div style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600">${esc(e.customer)}</div></div>${tabBar}</div>`
+      <div style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600">${esc(e.customer)}</div></div>${tabBar}${dayStrip}</div>`
     :`<button class="btn sec small" data-view="events" type="button" style="align-self:flex-start">← งานทั้งหมด</button>`}
   ${(()=>{const li=lockInfo(e);if(!li)return "";
     if(li.expired){const rq=unlockReq(e),can=S.can0&&(S.can0.isAdmin||S.can0.canSales);
@@ -1128,7 +1135,6 @@ function viewEvent(){
     <p class="muted" style="margin:0;font-size:.85rem">งานขายขาด ยอดขายมาจากใบคอนเฟิร์มทั้งงาน กรอกเฉพาะค่าใช้จ่ายจริงของงาน</p>
     ${ds.length?dayPL(e,"event"):`<div class="empty">ยังไม่ได้กำหนดวันที่จัดงาน</div>`}</section>`):tab==="sales"?`<section style="display:flex;flex-direction:column;gap:12px">
     <h2>กรอกยอดขายรายวัน</h2>
-    <div class="daytabs">${rows.map(r=>`<button class="daytab" data-day="${r.d}" aria-pressed="${r.d===S.day}" type="button">${dLabel(r.d)}<small>${r.c?(r.c.np<0?`<span class="neg">ขาดทุน ฿${fmt(-r.c.np)}</span>`:`<span class="pos">กำไร ฿${fmt(r.c.np)}</span>`):r.d<=t?"ยังไม่กรอก":"ยังไม่ถึงวันงาน"}</small></button>`).join("")}</div>
     ${S.day?dayPL(e,S.day):`<div class="empty">ยังไม่ได้กำหนดวันที่จัดงาน</div>`}
   </section>`:""}
   ${tab==="pl"?(()=>{const A=plAgg(e);return (isBooth(e)?plCards(e,rows,A.sum):"")+((A.done||A.xc)?plStatement(e,A):"")+extraPanel(e)})():""}
@@ -1144,9 +1150,9 @@ const XTRA_LABELS=["ค่าเช่าพื้นที่","ค่าแร
 function plAgg(e){
   const ds=sortedDates(e),keys=isBooth(e)?ds:["event"];
   const rows=keys.map(d=>{const pl=S.pl[d];return{d,pl,c:pl?calcPL(e,effPL(e,d,pl)):null}});
-  const xp=S.pl.extra,xc=xp&&(xp.otherCosts||[]).length?calcPL(e,effPL(e,"extra",xp)):null;
+  const xp=S.pl.extra,xc=xp&&((xp.otherCosts||[]).length||(xp.adjust||[]).length)?calcPL(e,effPL(e,"extra",xp)):null;
   const all=[...rows.filter(r=>r.c),...(xc?[{d:"extra",pl:xp,c:xc}]:[])];
-  const sum={gross:0,vat:0,net:0,cogs:0,cogsSales:0,waste:0,gp:0,other:0,np:0};
+  const sum={gross:0,vat:0,net:0,cogs:0,cogsSales:0,waste:0,adjSales:0,adjCogs:0,gp:0,other:0,np:0};
   all.forEach(r=>{for(const k in sum)sum[k]+=n(r.c[k])});
   const act={};all.forEach(r=>(effPL(e,r.d,r.pl).otherCosts||[]).forEach(o=>{if(n(o.amount)){const l=(o.label||"ค่าใช้จ่ายอื่น ๆ").trim();act[l]=(act[l]||0)+n(o.amount)}}));
   return {rows,xc,sum,act,done:rows.filter(r=>r.c).length};
@@ -1168,12 +1174,14 @@ function plStatement(e,A){
     <div><h2 style="margin:0">งบกำไรขาดทุน (P&amp;L)</h2><div class="muted" style="font-size:.85rem">${isBooth(e)?`กรอกยอดแล้ว ${A.done}/${A.rows.length} วัน`:"ทั้งงาน"}${A.xc?" · รวมค่าใช้จ่ายเพิ่มเติมทั้งงาน":""} · % ของยอดขายสุทธิ (ก่อน VAT)</div></div>
     <div class="tbl-wrap"><table class="plst"><thead><tr><th>รายการ</th><th class="r">Actual</th><th class="r">%</th>${B?`<th class="r">Budget</th><th class="r">%</th>`:""}</tr></thead><tbody>
     ${sec("รายได้")}
-    ${row("ยอดขาย (รวม VAT)",B?B.gross:null,sum.gross,{ind:1})}
+    ${row("ยอดขาย (รวม VAT)",B?B.gross:null,sum.gross-sum.adjSales,{ind:1})}
+    ${sum.adjSales?row("ปรับปรุงยอดขาย (Adjust)",B?0:null,sum.adjSales,{ind:1,sign:1}):""}
     ${e.vatIncluded!==false?row("หัก VAT 7%",B?-(B.gross-B.net):null,-sum.vat,{ind:1}):""}
     ${row("ยอดขายสุทธิ",B?B.net:null,sum.net,{cls:"total"})}
     ${sec("ต้นทุนขาย")}
     ${row("ต้นทุนอาหาร (COGS)",B?B.food:null,sum.cogsSales,{ind:1})}
     ${row("Waste (ของเสีย)",B?0:null,sum.waste,{ind:1})}
+    ${sum.adjCogs?row("ปรับปรุงต้นทุน (Adjust)",B?0:null,sum.adjCogs,{ind:1,sign:1}):""}
     ${row("รวมต้นทุนขาย",B?B.food:null,sum.cogs,{cls:"total"})}
     ${row("กำไรขั้นต้น (GP)",B?B.net-B.food:null,sum.gp,{cls:"total",sign:1})}
     ${sec("ค่าใช้จ่ายดำเนินงาน")}
@@ -1184,23 +1192,26 @@ function plStatement(e,A){
     ${B?`<p class="muted" style="margin:0;font-size:.8rem">Budget = ทั้งงานตาม Feasibility · Actual = วันที่กรอกแล้ว</p>`:""}
   </section>`;
 }
+const XK=[["exp","ค่าใช้จ่าย"],["sales","ปรับยอดขาย (รวม VAT)"],["cogs","ปรับต้นทุนอาหาร"]];
+function xList(xp){return [...(xp?.otherCosts||[]).map(o=>({kind:"exp",label:o.label,amount:n(o.amount)})),...(xp?.adjust||[]).map(o=>({kind:o.kind,label:o.label,amount:n(o.amount)}))]}
 function extraPanel(e){
-  const can=S.canSales,xp=S.pl.extra,list=(S.xDraft||(xp?.otherCosts)||[]);
-  if(!can&&!list.length)return "";
-  if(!can)return `<section class="panel" style="display:flex;flex-direction:column;gap:8px"><h2 style="margin:0">ค่าใช้จ่ายเพิ่มเติม (ทั้งงาน)</h2>
-    ${list.map(o=>`<div class="row" style="justify-content:space-between;border-top:1px solid var(--line);padding-top:6px"><span>${esc(o.label)}</span><span class="num">฿${fmt(o.amount,2)}</span></div>`).join("")}</section>`;
-  const d=S.xDraft||(S.xDraft=JSON.parse(JSON.stringify(xp?.otherCosts||[])));
-  const tot=d.reduce((a,o)=>a+n(o.amount),0);
+  const can=S.canSales,xp=S.pl.extra,saved=xList(xp);
+  if(!can&&!saved.length)return "";
+  const kl=k=>(XK.find(x=>x[0]===k)||XK[0])[1];
+  if(!can)return `<section class="panel" style="display:flex;flex-direction:column;gap:8px"><h2 style="margin:0">ค่าใช้จ่ายเพิ่มเติม / Adjust</h2>
+    ${saved.map(o=>`<div class="row" style="justify-content:space-between;border-top:1px solid var(--line);padding-top:6px"><span>${esc(o.label)} <span class="muted" style="font-size:.8rem">· ${kl(o.kind)}</span></span><span class="num${o.amount<0?" neg":""}">฿${fmt(o.amount,2)}</span></div>`).join("")}</section>`;
+  const d=S.xDraft||(S.xDraft=saved);
   return `<section class="panel" style="display:flex;flex-direction:column;gap:10px">
-    <div><h2 style="margin:0">ค่าใช้จ่ายเพิ่มเติม (ทั้งงาน)</h2><div class="muted" style="font-size:.85rem">ค่าใช้จ่ายที่ไม่ได้ลงรายวัน เช่น ค่าเช่าพื้นที่ทั้งงาน ค่าขนของ ค่าตกแต่ง · รวมเข้า P&amp;L ด้านบนอัตโนมัติ</div></div>
+    <div><h2 style="margin:0">ค่าใช้จ่ายเพิ่มเติม / Adjust</h2><div class="muted" style="font-size:.85rem">ใช้เพิ่มค่าใช้จ่ายทั้งงาน หรือปรับยอดขาย/ต้นทุนให้ตรงกับยอดจริง · ใส่ค่าติดลบเพื่อลดยอดได้ · รวมเข้า P&amp;L ด้านบนอัตโนมัติ</div></div>
     <datalist id="xLabels">${XTRA_LABELS.map(l=>`<option value="${esc(l)}">`).join("")}</datalist>
-    ${d.length?d.map((o,i)=>`<div class="row" style="flex-wrap:nowrap;gap:8px">
-      <input id="xl-${i}" type="text" list="xLabels" value="${esc(o.label)}" placeholder="รายการ" style="flex:1 1 auto;min-width:0">
-      <input id="xa-${i}" type="number" inputmode="decimal" step="0.01" min="0" value="${n(o.amount)||""}" placeholder="0.00" style="flex:0 0 110px;text-align:right">
+    ${d.length?d.map((o,i)=>`<div class="xrow">
+      <select id="xk-${i}" aria-label="ประเภท">${XK.map(([k,l])=>`<option value="${k}"${o.kind===k?" selected":""}>${l}</option>`).join("")}</select>
+      <input id="xl-${i}" type="text" list="${o.kind==="exp"?"xLabels":""}" value="${esc(o.label)}" placeholder="${o.kind==="exp"?"รายการ":"เหตุผลที่ปรับ"}">
+      <input id="xa-${i}" type="number" inputmode="decimal" step="0.01" value="${n(o.amount)||""}" placeholder="0.00" style="text-align:right">
       <button class="btn sec small" data-xdel="${i}" type="button" aria-label="ลบ">✕</button></div>`).join(""):`<div class="muted" style="font-size:.9rem">ยังไม่มีรายการ</div>`}
     <div class="row" style="justify-content:space-between">
-      <button class="btn sec small" id="xAdd" type="button">+ เพิ่มรายการ</button>
-      <div class="row" style="gap:8px"><span class="muted">รวม <b class="num" id="xTot">฿${fmt(tot,2)}</b></span><button class="btn small" id="xSave" type="button">บันทึกค่าใช้จ่าย</button></div></div>
+      <div class="row" style="gap:6px"><button class="btn sec small" id="xAdd" data-k="exp" type="button">+ ค่าใช้จ่าย</button><button class="btn sec small" id="xAddAdj" type="button">+ Adjust ยอด</button></div>
+      <button class="btn small" id="xSave" type="button">บันทึก</button></div>
   </section>`;
 }
 function rollupActual(e){
@@ -1300,10 +1311,12 @@ function plSheet(e){
     <div style="display:flex;gap:10px">${[["ยอดขาย (inc. VAT)",sum.gross,B?`Target ฿${fmt(fz.gross)} · ${pct(sum.gross,fz.gross)}`:""],["Total Cost",sum.cogs+sum.other,""],["กำไร/ขาดทุนสุทธิ",sum.np,`${pct(sum.np,sum.net)} ของยอดขายก่อน VAT`]].map(([l,v,sub],i)=>`<div style="flex:1;border:1px solid var(--line);border-radius:10px;padding:10px 12px">
       <div style="font-size:11px;color:var(--muted)">${l}</div><div style="font-family:var(--f-num);font-size:18px;font-weight:600;${i===2?`color:${v<0?"var(--bad)":"var(--good)"}`:""}">฿${fmt(v)}</div><div style="font-size:11px;color:var(--muted)">${sub}</div></div>`).join("")}</div>
     <table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>${th("รายการ")}${B?th("Budget",1)+th("%",1):""}${th("Actual",1)}${th("%",1)}</tr></thead><tbody>
-      ${line("Sales (inc. VAT)",B?fz.gross:null,sum.gross)}
+      ${line("Sales (inc. VAT)",B?fz.gross:null,sum.gross-sum.adjSales)}
+      ${sum.adjSales?line("ปรับปรุงยอดขาย (Adjust)",B?0:null,sum.adjSales):""}
       ${line("ยอดขายก่อน VAT",B?bNet:null,sum.net)}
       ${line("Food cost",B?bFood:null,sum.cogsSales)}
       ${line("Waste (ของเสีย)",B?0:null,sum.waste)}
+      ${sum.adjCogs?line("ปรับปรุงต้นทุน (Adjust)",B?0:null,sum.adjCogs):""}
       ${line("Gross Profit",B?bNet-bFood:null,sum.gp,strong)}
       ${labels.map(l=>{const b=budgetItems.find(x=>x[0]===l);return line(esc(l),B?(b?b[1]:0):null,act[l]||0)}).join("")}
       ${line("Total Cost",B?bTot:null,sum.cogs+sum.other,strong)}
@@ -1928,6 +1941,7 @@ function bind(){
 
   /* event sheet */
   if(S.view==="event"){
+    {const st=$("#dayStrip"),a=st&&st.querySelector('[aria-pressed="true"]');if(a)st.scrollLeft=Math.max(0,a.offsetLeft-st.offsetLeft-(st.clientWidth-a.offsetWidth)/2)}
     const e=S.events.find(x=>x.id===S.eventId);
     fillNames();
     on("[data-evtab]","click",ev=>{rerender();S.evTab=ev.currentTarget.dataset.evtab;render();window.scrollTo(0,0)});
@@ -1997,15 +2011,19 @@ function bind(){
         try{await S.db.doc(base+"/events/"+e.id).update({actual:act})}catch(_){}
         {const c=calcPL(e,effPL(e,d,body));logAct("pl",e,`${d==="event"?"ทั้งงาน":dLabel(d)} · ยอดขาย ฿${fmt(c.gross)} · ${c.np<0?"ขาดทุน":"กำไร"} ฿${fmt(Math.abs(c.np))}`)}
         render()}};
-    const readX=()=>{if(!S.xDraft)return;S.xDraft=S.xDraft.map((o,i)=>$("#xl-"+i)?{label:$("#xl-"+i).value.trim(),amount:n($("#xa-"+i).value)}:o)};
-    if($("#xAdd"))$("#xAdd").onclick=()=>{readX();S.xDraft.push({label:"",amount:0});rerender();const i=S.xDraft.length-1;$("#xl-"+i)&&$("#xl-"+i).focus()};
+    const readX=()=>{if(!S.xDraft)return;S.xDraft=S.xDraft.map((o,i)=>$("#xl-"+i)?{kind:$("#xk-"+i).value,label:$("#xl-"+i).value.trim(),amount:n($("#xa-"+i).value)}:o)};
+    const addX=k=>{readX();S.xDraft.push({kind:k,label:"",amount:0});rerender();const i=S.xDraft.length-1;$("#xl-"+i)&&$("#xl-"+i).focus()};
+    if($("#xAdd"))$("#xAdd").onclick=()=>addX("exp");
+    if($("#xAddAdj"))$("#xAddAdj").onclick=()=>addX("sales");
+    on("[id^=xk-]","change",()=>{readX();rerender()});
     on("[data-xdel]","click",ev=>{readX();S.xDraft.splice(+ev.currentTarget.dataset.xdel,1);rerender()});
-    on("[id^=xa-]","input",()=>{const t=[...document.querySelectorAll("[id^=xa-]")].reduce((a,x)=>a+n(x.value),0);if($("#xTot"))$("#xTot").textContent="฿"+fmt(t,2)});
-    if($("#xSave"))$("#xSave").onclick=async()=>{readX();const oc=S.xDraft.filter(o=>o.label||n(o.amount)).map(o=>({label:o.label||"ค่าใช้จ่ายอื่น ๆ",amount:n(o.amount)}));
-      const body={sales:[],waste:[],cateringFee:0,otherCosts:oc,updatedBy:S.uid||"",updatedAt:new Date().toISOString()};
-      if(await write(()=>S.db.doc(base+"/events/"+e.id+"/pl/extra").set(body),"บันทึกค่าใช้จ่ายเพิ่มเติมแล้ว")){S.pl.extra=body;S.xDraft=null;
+    if($("#xSave"))$("#xSave").onclick=async()=>{readX();const keep=S.xDraft.filter(o=>o.label||n(o.amount));
+      const oc=keep.filter(o=>o.kind==="exp").map(o=>({label:o.label||"ค่าใช้จ่ายอื่น ๆ",amount:n(o.amount)}));
+      const adjust=keep.filter(o=>o.kind!=="exp").map(o=>({kind:o.kind,label:o.label||"Adjust",amount:n(o.amount)}));
+      const body={sales:[],waste:[],cateringFee:0,otherCosts:oc,adjust,updatedBy:S.uid||"",updatedAt:new Date().toISOString()};
+      if(await write(()=>S.db.doc(base+"/events/"+e.id+"/pl/extra").set(body),"บันทึกค่าใช้จ่ายเพิ่มเติม / Adjust แล้ว")){S.pl.extra=body;S.xDraft=null;
         try{await S.db.doc(base+"/events/"+e.id).update({actual:rollupActual(e)})}catch(_){}
-        logAct("pl",e,`ค่าใช้จ่ายเพิ่มเติมทั้งงาน ฿${fmt(oc.reduce((a,o)=>a+o.amount,0))}`);render()}};
+        logAct("pl",e,`ค่าใช้จ่ายเพิ่มเติม ฿${fmt(oc.reduce((a,o)=>a+o.amount,0))}${adjust.length?` · Adjust ${adjust.length} รายการ`:""}`);render()}};
   }
 
   /* users */
