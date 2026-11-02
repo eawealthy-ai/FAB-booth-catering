@@ -1130,6 +1130,7 @@ function viewEvent(){
   ${isBooth(e)&&tab==="info"?`<section style="display:flex;flex-direction:column;gap:10px"><h2>Feasibility บูธ</h2>${feasPanel(e,calcFeas(e))}
     <p class="muted" style="margin:0;font-size:.82rem">${inlineFc()?"คิดจากค่าใช้จ่ายที่กรอกไว้ในงานนี้ · กดแก้ไขงานเพื่อเปลี่ยนตัวเลข":"คิดจาก Fixed cost Booth ณ วันที่บันทึกงาน · กดแก้ไขงานเพื่อคำนวณใหม่ด้วยค่าปัจจุบัน"}</p></section>`:""}
   ${!isBooth(e)&&tab==="info"?viewPayments(e):""}
+  ${tab==="info"?viewDocs(e):""}
   ${tab==="info"?viewUpdates(e):""}
   ${!isBooth(e)?(tab!=="pl"?"":`<section style="display:flex;flex-direction:column;gap:12px"><h2>งบกำไรขาดทุน</h2>
     <p class="muted" style="margin:0;font-size:.85rem">งานขายขาด ยอดขายมาจากใบคอนเฟิร์มทั้งงาน กรอกเฉพาะค่าใช้จ่ายจริงของงาน</p>
@@ -1634,6 +1635,27 @@ function viewPayments(e){
   </section>`;
 }
 function readPay(){}
+/* event documents / manuals */
+const DOC_ACCEPT=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.docx,.pptx";
+const DOC_MIME={pdf:"application/pdf",png:"image/png",jpg:"image/jpeg",jpeg:"image/jpeg",webp:"image/webp",xlsx:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",docx:"application/vnd.openxmlformats-officedocument.wordprocessingml.document",pptx:"application/vnd.openxmlformats-officedocument.presentationml.presentation"};
+const fileSize=b=>b>=1048576?(b/1048576).toFixed(1)+" MB":Math.max(1,Math.round(b/1024))+" KB";
+function viewDocs(e){
+  const docs=e.docs||[],can=S.isAdmin&&S.assets;
+  if(!docs.length&&!can)return "";
+  const tag=x=>{const k=(x.ext||"").toUpperCase();const c={PDF:"#c8102e",XLSX:"#1f7a4d",DOCX:"#2b5cb8",PPTX:"#c4561d"}[k]||"#6b7285";return `<span style="flex:none;width:44px;height:52px;border-radius:8px;background:${c};color:#fff;display:grid;place-items:center;font-size:.72rem;font-weight:700;letter-spacing:.04em">${esc(k||"FILE")}</span>`};
+  return `<section style="display:flex;flex-direction:column;gap:10px">
+    <div class="row" style="justify-content:space-between"><h2 style="margin:0">คู่มือ / เอกสารงาน</h2>
+    ${can?`<label class="btn small" style="cursor:pointer">${S.docBusy?"กำลังอัปโหลด…":"+ อัปโหลดไฟล์"}<input id="docFile" type="file" accept="${DOC_ACCEPT}" multiple hidden ${S.docBusy?"disabled":""}></label>`:""}</div>
+    ${docs.length?`<div style="display:flex;flex-direction:column;gap:8px">${docs.map(d=>{const src=slipSrc(d.path),ready=!/^data:/.test(src);
+      return `<div class="panel" style="display:flex;gap:12px;align-items:center;padding:10px 12px">${tag(d)}
+        <div style="flex:1;min-width:0"><div style="font-weight:600;overflow-wrap:anywhere">${esc(d.name)}</div>
+          <div class="muted" style="font-size:.8rem">${fileSize(n(d.size))} · ${esc(new Date(d.at).toLocaleDateString("th-TH",{dateStyle:"medium"}))} · <span data-uname="${esc(d.by||"")}">…</span></div></div>
+        <div class="row" style="gap:6px;flex:none">
+          ${ready?`<a class="btn sec small" href="${esc(src)}" target="_blank" rel="noopener" style="text-decoration:none">เปิด</a>`:`<span class="muted" style="font-size:.8rem">กำลังโหลด…</span>`}
+          ${can?(S.docDel===d.path?`<button class="btn small" data-docdelyes="${esc(d.path)}" type="button">ลบ</button><button class="btn sec small" data-docdelno type="button">ไม่ลบ</button>`:`<button class="btn sec small" data-docdel="${esc(d.path)}" type="button" aria-label="ลบไฟล์">✕</button>`):""}
+        </div></div>`}).join("")}</div>`:`<div class="empty" style="padding:18px">ยังไม่มีไฟล์ · อัปโหลดคู่มือ แผนงาน หรือเงื่อนไขของงานไว้ให้ทีมเปิดดูได้</div>`}
+  </section>`;
+}
 const UP_TYPES=["แจ้งร้านค้า","ซัพพลายเออร์","เปลี่ยนแปลงจากลูกค้า","โลจิสติกส์","อื่น ๆ"];
 function viewUpdates(e){
   const ups=S.updates||[],ud=S.upDraft||{};
@@ -1971,6 +1993,22 @@ function bind(){
       if(await write(()=>S.db.doc(base+"/events/"+e.id+"/payments/"+id).delete(),"ลบสลิปแล้ว")){
         if(p&&S.assets){try{await S.assets.delete(p.assetId)}catch(_){}}
         S.payments=S.payments.filter(x=>x.id!==id);S.payDel=null;await syncPaid();rerender()}});
+    if($("#docFile"))$("#docFile").addEventListener("change",async ev=>{
+      const files=[...ev.target.files];if(!files.length)return;
+      const big=files.find(f=>f.size>50*1024*1024);if(big){toast("ไฟล์ "+big.name+" ใหญ่เกิน 50 MB");ev.target.value="";return}
+      S.docBusy=true;rerender();const added=[];
+      for(const f of files){const ext=(f.name.split(".").pop()||"").toLowerCase(),type=DOC_MIME[ext];
+        if(!type){toast("ไม่รองรับไฟล์ ."+ext+" (ใช้ PDF รูป Excel Word PowerPoint)");continue}
+        try{const up=await S.assets.upload(f,{type,ext,folder:"docs"});added.push({path:up.id,name:f.name,ext,size:f.size,type,by:S.uid||"",at:new Date().toISOString()})}
+        catch(x){toast("อัปโหลด "+f.name+" ไม่สำเร็จ"+(x?.code==="too_large"?" (ไฟล์ใหญ่เกิน)":""))}}
+      if(added.length){const docs=[...(e.docs||[]),...added];
+        if(await write(()=>S.db.doc(base+"/events/"+e.id).update({docs}),"อัปโหลด "+added.length+" ไฟล์แล้ว")){e.docs=docs;logAct("update",e,"แนบเอกสาร: "+added.map(a=>a.name).join(", "))}}
+      S.docBusy=false;rerender()});
+    on("[data-docdel]","click",ev=>{S.docDel=ev.currentTarget.dataset.docdel;rerender()});
+    on("[data-docdelno]","click",()=>{S.docDel=null;rerender()});
+    on("[data-docdelyes]","click",async ev=>{const path=ev.currentTarget.dataset.docdelyes,docs=(e.docs||[]).filter(d=>d.path!==path);
+      if(await write(()=>S.db.doc(base+"/events/"+e.id).update({docs}),"ลบไฟล์แล้ว")){e.docs=docs;try{await S.assets.delete(path)}catch(_){}}
+      S.docDel=null;rerender()});
     if($("#upNew"))$("#upNew").onclick=()=>{S.upOpen=true;S.upDraft={type:UP_TYPES[0]};rerender()};
     if($("#upCancel"))$("#upCancel").onclick=()=>{S.upOpen=false;S.upDraft=null;rerender()};
     if($("#upSave"))$("#upSave").onclick=async()=>{readUp();const u=S.upDraft||{};

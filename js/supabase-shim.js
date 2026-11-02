@@ -351,10 +351,11 @@
   const PLACEHOLDER = "data:image/svg+xml;utf8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="84" height="110"><rect width="84" height="110" fill="#eee"/></svg>');
   window.slipSrc = function (path) {
     if (!path) return PLACEHOLDER;
-    if (urlCache[path]) return urlCache[path];
+    const hit = urlCache[path];
+    if (hit && hit.exp > Date.now()) return hit.url;
     if (!pending[path]) {
       pending[path] = sb.storage.from("slips").createSignedUrl(path, 3600).then(({ data }) => {
-        if (data?.signedUrl) { urlCache[path] = data.signedUrl; window.dispatchEvent(new Event("bc-rerender")); }
+        if (data?.signedUrl) { urlCache[path] = { url: data.signedUrl, exp: Date.now() + 50 * 60 * 1000 }; window.dispatchEvent(new Event("bc-rerender")); }
       }).finally(() => setTimeout(() => delete pending[path], 1000));
     }
     return PLACEHOLDER;
@@ -362,9 +363,9 @@
   const assets = {
     async upload(blob, opts = {}) {
       const type = opts.type || blob.type || "image/jpeg";
-      const ext = type === "application/pdf" ? "pdf" : type === "image/png" ? "png" : type === "image/webp" ? "webp" : "jpg";
+      const ext = opts.ext ? String(opts.ext).toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 5) || "bin" : type === "application/pdf" ? "pdf" : type === "image/png" ? "png" : type === "image/webp" ? "webp" : "jpg";
       let brand = "jaedang"; try { brand = localStorage.getItem("bc.brand") || brand; } catch (_) {}
-      const path = `${brand}/${crypto.randomUUID ? crypto.randomUUID() : Date.now()}.${ext}`;
+      const path = `${brand}/${opts.folder ? opts.folder.replace(/[^a-z0-9_-]/gi, "") + "/" : ""}${crypto.randomUUID ? crypto.randomUUID() : Date.now()}.${ext}`;
       const { error } = await sb.storage.from("slips").upload(path, blob, { contentType: type, upsert: false });
       if (error) { const x = new Error(error.message); x.code = /size/i.test(error.message) ? "too_large" : /mime|type/i.test(error.message) ? "unsupported_type" : "upstream_error"; throw x; }
       return { id: path, url: window.slipSrc(path), sizeBytes: blob.size, contentType: type };

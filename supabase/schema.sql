@@ -284,7 +284,7 @@ create policy reads_write on public.reads for all to authenticated
 
 -- ---------- storage: payment slips (private bucket, path = <brand>/<file>) ----------
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values ('slips', 'slips', false, 20971520, array['image/png','image/jpeg','image/webp','application/pdf'])
+values ('slips', 'slips', false, 52428800, array['image/png','image/jpeg','image/webp','application/pdf','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','application/vnd.openxmlformats-officedocument.wordprocessingml.document','application/vnd.openxmlformats-officedocument.presentationml.presentation'])
 on conflict (id) do nothing;
 
 drop policy if exists slips_read on storage.objects;
@@ -296,6 +296,9 @@ create policy slips_insert on storage.objects for insert to authenticated
 drop policy if exists slips_delete on storage.objects;
 create policy slips_delete on storage.objects for delete to authenticated
   using (bucket_id = 'slips' and public.has_brand((storage.foldername(name))[1]) and public.can_register());
+
+-- event documents / manuals live in the same bucket under <brand>/docs/, listed in events.docs
+alter table public.events add column if not exists docs jsonb not null default '[]'::jsonb;
 
 -- ---------- realtime (live refresh for every open screen) ----------
 do $$
