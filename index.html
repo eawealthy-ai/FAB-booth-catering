@@ -137,6 +137,25 @@ textarea{min-height:64px;resize:vertical}
 /* event list */
 .evlist{display:flex;flex-direction:column;gap:10px}
 .m-only{display:none!important}
+.side{display:none}
+@media (min-width:821px){
+  :root{--sidew:256px}
+  body{padding-left:calc(var(--sidew) + 28px);padding-right:28px}
+  .bar{margin-left:calc(-1*(var(--sidew) + 28px));margin-right:-28px}
+  .bar-in{max-width:none;padding-left:24px;padding-right:24px;padding-bottom:10px}
+  .bar .tabs,header #switchBrand,header #logoutBtn{display:none!important}
+  .side{display:flex;flex-direction:column;position:fixed;left:0;top:var(--barh,64px);bottom:0;width:var(--sidew);background:var(--surface);border-right:1px solid var(--line);overflow-y:auto;z-index:4;padding:16px 0 24px}
+  .side-new{margin:0 16px 14px;display:flex;align-items:center;justify-content:center;gap:10px;border:0;border-radius:10px;padding:15px 12px;background:var(--brand-2);color:#fff;font-weight:600;font-size:1rem;box-shadow:0 6px 18px -8px var(--brand-2)}
+  .side-new:hover{filter:brightness(1.06)}
+  .side-it{position:relative;display:flex;align-items:center;gap:14px;width:100%;border:0;background:none;text-align:left;padding:14px 24px;color:var(--ink);font-size:.98rem;border-bottom:1px solid var(--line)}
+  .side-it svg{flex:none;color:var(--muted)}
+  .side-it:hover{background:var(--soft)}
+  .side-it[aria-current="page"]{color:var(--brand-2);font-weight:600;background:var(--brand-soft)}
+  .side-it[aria-current="page"] svg{color:var(--brand-2)}
+  .side-it[aria-current="page"]::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:0 3px 3px 0;background:var(--brand-2)}
+  .side-it .nbadge{margin-left:auto}
+  .side-sec{padding:18px 24px 6px;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+}
 .xmenu{position:relative;display:inline-block}
 .xmenu>summary{list-style:none;display:inline-flex;align-items:center;gap:6px;cursor:pointer}
 .xmenu>summary::-webkit-details-marker{display:none}
@@ -393,6 +412,7 @@ tr.total td{background:var(--brand-soft)}
       <button class="tab" data-view="users" id="tabUsers" type="button" hidden>ผู้ใช้ &amp; สิทธิ์</button>
     </nav>
   </div></header>
+  <aside class="side" id="side" aria-label="เมนู"></aside>
   <main class="wrap" id="main"></main>
   <nav class="bnav m-only" id="bnav" aria-label="เมนูด่วน"></nav>
 </div>
@@ -681,6 +701,7 @@ document.addEventListener("click",ev=>{
 });
 $("#switchBrand").onclick=()=>{leaveBrand();ls("bc.brand",null);showGate()};
 $("#hdrBell").onclick=()=>go("notif");
+try{window.matchMedia("(min-width:821px)").addEventListener("change",()=>{if(S.brand)render()})}catch(_){}
 document.addEventListener("toggle",ev=>{const d=ev.target;if(!d.classList||!d.classList.contains("xmenu")||!d.open)return;
   d.classList.remove("r");const r=d.getBoundingClientRect();if(r.left+210>document.documentElement.clientWidth-8)d.classList.add("r")},true);
 $("#hdrPower").onclick=()=>{const b=document.querySelector("header #logoutBtn");if(b)b.click()};
@@ -697,6 +718,7 @@ function go(view,opts={}){
 /* ---------- render ---------- */
 function render(){
   if(!S.brand)return;
+  if(S.view==="home"&&isDesk())S.view="dash";
   $("#brandName").textContent=BRANDS[S.brand].name;
   const role=myRole();
   const pend=!S.isOwner&&role&&role!=="viewer"&&!S.levelAdmin;
@@ -707,7 +729,7 @@ function render(){
   {const u=unreadCount(),b=$("#notifBadge");b.hidden=!u;b.textContent=u>99?"99+":String(u);b.setAttribute("aria-label",u+" รายการยังไม่อ่าน");
    const base="Booth & Catering Desk";document.title=u?`(${u>99?"99+":u}) ${base}`:base}
   $("#tabMenus").hidden=!S.isSys;
-  {const u=unreadCount(),hb=$("#hdrBadge");hb.hidden=!u;hb.textContent=u>99?"99+":String(u);$("#bnav").innerHTML=bottomNav(u);$("#bnav").hidden=S.view==="home";document.body.classList.toggle("has-bnav",S.view!=="home")}
+  {const u=unreadCount(),hb=$("#hdrBadge");hb.hidden=!u;hb.textContent=u>99?"99+":String(u);$("#bnav").innerHTML=bottomNav(u);$("#side").innerHTML=sideNav(u);$("#bnav").hidden=S.view==="home";document.body.classList.toggle("has-bnav",S.view!=="home")}
   $("#switchBrand").hidden=allowedBrands().length<2;
   if((S.view==="users"||S.view==="menus")&&!S.isSys)S.view="events";
   if(S.view==="overall"&&!(S.isOwner||role==="management"))S.view="events";
@@ -817,6 +839,22 @@ function viewHome(){
   </section>
   ${upcoming.length?`<section style="display:flex;flex-direction:column;gap:8px"><h2>งานถัดไป</h2>
     ${upcoming.map(e=>{const ds=sortedDates(e),[cls,lab]=eventStatus(e);return `<button class="panel hk-next" data-open="${esc(e.id)}" type="button"><div><b>${esc(e.customer)}</b><div class="muted" style="font-size:.85rem">${esc(e.format)} · ${datesText(ds)}</div></div><span class="pill ${cls}">${lab}</span></button>`}).join("")}</section>`:""}`;
+}
+const isDesk=()=>window.matchMedia("(min-width:821px)").matches;
+function sideNav(u){
+  const role=myRole(),v=S.view==="event"?"events":S.view==="home"?"dash":S.view;
+  const it=(k,ic,l,extra="")=>`<button class="side-it" data-home="${k}" type="button" aria-current="${v===k?"page":"false"}">${ico(ic,22)}<span>${l}</span>${extra}</button>`;
+  let h=S.isAdmin?`<button class="side-new" data-home="new" type="button">${ico("plus",20)}<span>Add new event</span></button>`
+    :S.canSales?`<button class="side-new" data-home="sales" type="button">${ico("pos",20)}<span>กรอกยอดขาย</span></button>`:"";
+  h+=it("dash","chart","Dashboard")+it("events","list","งานทั้งหมด")+it("cal","cal","ปฏิทินงาน");
+  if(S.isAdmin)h+=it("feas","feas","Run Feasibility");
+  if(S.isAdmin&&S.canSales)h+=it("sales","pos","กรอกยอดขาย");
+  if(S.isOwner||role==="management")h+=it("overall","pie","ภาพรวม 2 แบรนด์");
+  h+=it("notif","bell","แจ้งเตือน",u?`<span class="nbadge">${u>99?"99+":u}</span>`:"");
+  const o=[];if(S.isSys)o.push(it("menus","book","เมนู & BOM"),it("users","users","ผู้ใช้ & สิทธิ์"));
+  if(allowedBrands().length>1)o.push(it("switch","swap","เปลี่ยนแบรนด์"));
+  o.push(it("logout","power","ออกจากระบบ"));
+  return h+`<div class="side-sec">บริการอื่น</div>`+o.join("");
 }
 function bottomNav(u){
   const role=myRole(),c=S.isAdmin?["new","plus","Add event"]:S.canSales?["sales","pos","กรอกยอด"]:["events","list","งาน"];
